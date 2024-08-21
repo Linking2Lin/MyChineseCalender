@@ -57,5 +57,5 @@ dependencies {
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
     implementation(libs.glance)
-    implementation(libs.glance.compose)
+    implementation(libs.glance.material3)
 }
