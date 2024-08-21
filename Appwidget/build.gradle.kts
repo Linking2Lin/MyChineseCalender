@@ -45,5 +45,11 @@ dependencies {
     implementation(libs.glance)
     implementation(libs.glance.material3)
     api(libs.kotlinx.serialization.json)
+    // ktor
+    implementation(libs.ktor.client.core)
+    implementation(libs.kotlinx.coroutines.core)
+    implementation(libs.ktor.client.okhttp)
+    // coroutines
+    implementation(libs.kotlinx.coroutines.android)
 
 }
