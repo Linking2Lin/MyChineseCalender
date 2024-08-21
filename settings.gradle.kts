@@ -21,3 +21,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "MyChineseCalender"
 include(":app")
+include(":Appwidget")
