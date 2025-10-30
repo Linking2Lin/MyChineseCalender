@@ -18,7 +18,7 @@ class ChineseCalenderRepository {
          *
          */
         const val BASE_URL =
-            "http://api.tiax.cn/almanac/?"
+            "https://api.tiax.cn/almanac/?"
             //"http://api.tiax.cn/almanac/?year=2023&month=3&day=2"
     }
 
@@ -43,17 +43,22 @@ class ChineseCalenderRepository {
         currentYear: String,
         currentMonth: String,
         currentDay: String
-    ) {
+    ) : CHNDate {
         return withContext(Dispatchers.IO) {
-            runCatching {
+           return@withContext runCatching {
                 val dataString = getDateString(
-                  currentDay = currentDay,
-                  currentMonth = currentMonth,
-                  currentYear = currentYear
-                    )
+                    currentDay = currentDay,
+                    currentMonth = currentMonth,
+                    currentYear = currentYear
+                )
                 Log.d(TAG, "getLunarDate:  + $dataString")
                 Json.decodeFromString<CHNDate>(dataString)
-            }
+            }.getOrNull() ?: CHNDate()
+//            }.onFailure {
+//                Log.d(TAG, "getLunarDate: onFailure " + it.stackTraceToString())
+//            }.onSuccess {
+//                Log.d(TAG, "getLunarDate onSuccess : $it")
+//            }
         }
     }
 }
