@@ -6,12 +6,12 @@ plugins {
 
 android {
     namespace = "lins.applications.mychinesecalender"
-    compileSdk = 34
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "lins.applications.mychinesecalender"
         minSdk = 31
-        targetSdk = 34
+        targetSdk = 36
         versionCode = 1
         versionName = "1.0"
 

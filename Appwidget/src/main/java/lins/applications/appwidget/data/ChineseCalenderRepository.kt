@@ -1,15 +1,15 @@
 package lins.applications.appwidget.data
 
+import android.util.Log
 import io.ktor.client.request.get
-import io.ktor.client.request.headers
 import io.ktor.client.statement.bodyAsText
-import io.ktor.client.utils.EmptyContent.headers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import lins.applications.appwidget.model.CHNDate
 
 class ChineseCalenderRepository {
+    private val TAG = "ChineseCalenderReposito"
 
     companion object {
         /**
@@ -18,26 +18,40 @@ class ChineseCalenderRepository {
          *
          */
         const val BASE_URL =
-            "https://data.weather.gov.hk/weatherAPI/opendata/lunardate.php?date=YYYY-MM-DD"
+            "http://api.tiax.cn/almanac/?"
+            //"http://api.tiax.cn/almanac/?year=2023&month=3&day=2"
     }
 
     private suspend fun getDateString(
-        currentDate: String
+        currentYear: String,
+        currentMonth: String,
+        currentDay: String
     ): String {
-        return KtorClient.client.get(BASE_URL.replace("YYYY-MM-DD", currentDate)){
+        val body = KtorClient.client.get(BASE_URL + "year=$currentYear&month=$currentMonth&day=$currentDay"){
 
-        }.bodyAsText()
+        }.bodyAsText(
+
+        )
+        Log.d(TAG, "getDateString: " + body)
+
+        return body
     }
 
 
 
     suspend fun getLunarDate(
-        currentDate: String
+        currentYear: String,
+        currentMonth: String,
+        currentDay: String
     ) {
         return withContext(Dispatchers.IO) {
             runCatching {
-                val dataString = getDateString(currentDate)
-                println(dataString)
+                val dataString = getDateString(
+                  currentDay = currentDay,
+                  currentMonth = currentMonth,
+                  currentYear = currentYear
+                    )
+                Log.d(TAG, "getLunarDate:  + $dataString")
                 Json.decodeFromString<CHNDate>(dataString)
             }
         }
