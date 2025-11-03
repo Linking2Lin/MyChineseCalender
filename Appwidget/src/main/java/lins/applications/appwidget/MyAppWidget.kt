@@ -6,6 +6,7 @@ import android.view.View
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.GlanceTheme
@@ -164,8 +165,7 @@ fun MediumWidgetLayout(date: CHNDateEnity, modifier: GlanceModifier) {
 
         modifier = GlanceModifier
             .padding(horizontal = 8.dp)
-            .fillMaxSize()
-        ,
+            .fillMaxSize(),
         verticalAlignment = Alignment.CenterVertically
 
 
@@ -173,7 +173,8 @@ fun MediumWidgetLayout(date: CHNDateEnity, modifier: GlanceModifier) {
         Row(
             modifier = GlanceModifier
                 .cornerRadius(100.dp)
-                .background(GlanceTheme.colors.primary),
+                .background(GlanceTheme.colors.primary)
+                .fillMaxSize(),
             horizontalAlignment = Alignment.Start,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -182,7 +183,7 @@ fun MediumWidgetLayout(date: CHNDateEnity, modifier: GlanceModifier) {
             Spacer(modifier = GlanceModifier.size(8.dp))
 
             Image(
-                provider = ImageProvider(com.google.android.material.R.color.design_default_color_background),
+                provider = ImageProvider(R.drawable.img_maodie),
                 contentDescription = null,
                 modifier = GlanceModifier
                     .size(68.dp)
@@ -201,19 +202,23 @@ fun MediumWidgetLayout(date: CHNDateEnity, modifier: GlanceModifier) {
 
             Column(
                 modifier = GlanceModifier
-                    .background(GlanceTheme.colors.secondaryContainer)
-                    .padding(start = 20.dp)
+                    //.background(GlanceTheme.colors.secondaryContainer)
                     .fillMaxSize(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalAlignment = Alignment.Start
             ) {
                 Text(
-                    text = date.lunarDate ?: "error",
+                    text = date.lunarDate?.substringAfter(" ") ?: "error",
                     style = TextStyle(
-                        color = GlanceTheme.colors.onPrimary
-                    )
+                        color = GlanceTheme.colors.onPrimary,
+                        fontSize = 20.sp
+                    ),
+                    modifier = GlanceModifier.wrapContentSize()
                 )
             }
+
+            Spacer(modifier = GlanceModifier.size(8.dp))
+
         }
     }
 }
