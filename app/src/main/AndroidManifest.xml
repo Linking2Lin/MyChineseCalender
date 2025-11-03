@@ -36,6 +36,18 @@
                 android:resource="@xml/my_app_widget_info" />
         </receiver>
 
+        <receiver android:name="lins.applications.appwidget.MyAppWidgetReceiver1"
+            android:exported="true"
+            >
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+                <action android:name="lins.ACTION_UPDATE_DATE"/>
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/my_app_widget_info1" />
+        </receiver>
+
     </application>
 
 </manifest>

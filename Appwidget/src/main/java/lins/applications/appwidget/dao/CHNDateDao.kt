@@ -26,5 +26,7 @@ interface CHNDateDao {
     @Insert
     fun insertDate(user: CHNDateEnity)
 
+    @Query("SELECT * FROM chndateenity order by uid desc limit 1")
+    fun getLast() : CHNDateEnity
 
 }

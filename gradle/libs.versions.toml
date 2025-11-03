@@ -19,6 +19,8 @@ retrofit = "2.9.0"
 okhttp = "4.11.0"
 ksp = "2.2.21-2.0.4"
 room = "2.6.1"
+androidx-glance-preview = "1.1.0-rc01"
+
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -53,6 +55,9 @@ slf4j-android = { group = "org.slf4j", name = "slf4j-android", version.ref = "sl
 room-runtime = { module = "androidx.room:room-runtime", version.ref = "room" }
 room-compiler = { module = "androidx.room:room-compiler", version.ref = "room"}
 room-ktx = { module = "androidx.room:room-ktx", version.ref = "room" }
+
+androidx-glance-preview = { group = "androidx.glance", name = "glance-preview", version.ref = "androidx-glance-preview" }
+androidx-glance-appwidget-preview = { group = "androidx.glance", name = "glance-appwidget-preview", version.ref = "androidx-glance-preview" }
 
 
 [plugins]

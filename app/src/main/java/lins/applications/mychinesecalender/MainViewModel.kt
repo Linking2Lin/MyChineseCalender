@@ -37,9 +37,11 @@ class MainViewModel() : ViewModel() {
                 AppDataBase::class.java, "database-name"
             ).build()
 
-            if (db.chnDateDao().getById(result.hashCode()) != null){
-                db.chnDateDao().deleteById(result.hashCode())
-            }
+            // calendar.timeInMillis
+
+//            if (db.chnDateDao().getById(result.year.hashCode()) != null){
+//                db.chnDateDao().deleteById(result.year.hashCode())
+//            }
 
             db.chnDateDao().insertDate(CHNDateEnity.covert(result))
 

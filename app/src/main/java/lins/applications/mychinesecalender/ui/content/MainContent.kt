@@ -23,6 +23,7 @@ fun MainContent(
                 text = data.value.asList()[it] ?: ""
             )
         }
+
     }
 
 }

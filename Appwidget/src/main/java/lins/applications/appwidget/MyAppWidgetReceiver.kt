@@ -7,3 +7,7 @@ import androidx.glance.appwidget.GlanceAppWidgetReceiver
 class MyAppWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = MyAppWidget()
 }
+
+class MyAppWidgetReceiver1 : GlanceAppWidgetReceiver() {
+    override val glanceAppWidget: GlanceAppWidget = MyAppWidget()
+}
