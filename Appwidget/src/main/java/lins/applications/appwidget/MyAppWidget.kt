@@ -173,7 +173,7 @@ fun MediumWidgetLayout(date: CHNDateEnity, modifier: GlanceModifier) {
         Row(
             modifier = GlanceModifier
                 .cornerRadius(100.dp)
-                .background(GlanceTheme.colors.primary)
+                .background(GlanceTheme.colors.onPrimaryContainer)
                 .fillMaxSize(),
             horizontalAlignment = Alignment.Start,
             verticalAlignment = Alignment.CenterVertically
