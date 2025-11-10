@@ -48,6 +48,15 @@
                 android:resource="@xml/my_app_widget_info1" />
         </receiver>
 
+        <receiver android:name="lins.applications.appwidget.receiver.DateChangeReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.DATE_CHANGED"/>
+                <action android:name="android.intent.action.TIME_SET"/>
+                <action android:name="android.intent.action.BATTERY_CHANGED"/>
+            </intent-filter>
+        </receiver>
+
     </application>
 
 </manifest>

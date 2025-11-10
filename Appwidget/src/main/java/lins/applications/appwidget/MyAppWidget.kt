@@ -208,7 +208,7 @@ fun MediumWidgetLayout(date: CHNDateEnity, modifier: GlanceModifier) {
                 horizontalAlignment = Alignment.Start
             ) {
                 Text(
-                    text = date.lunarDate?.substringAfter(" ") ?: "error",
+                    text = date.huangLiDate?.substringAfter("，") ?: "error",
                     style = TextStyle(
                         color = GlanceTheme.colors.onPrimary,
                         fontSize = 20.sp

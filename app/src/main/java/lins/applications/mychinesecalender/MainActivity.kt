@@ -1,5 +1,8 @@
 package lins.applications.mychinesecalender
 
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -12,7 +15,6 @@ import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 import lins.applications.appwidget.MyAppWidget
-import lins.applications.appwidget.MyAppWidgetReceiver
 import lins.applications.mychinesecalender.ui.content.MainContent
 import lins.applications.mychinesecalender.ui.theme.MyChineseCalenderTheme
 
@@ -33,31 +35,27 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        viewModel.getLunarDate(this.applicationContext)
-
-        lifecycleScope.launch {
-//            GlanceAppWidgetManager(this@MainActivity)
-//                .requestPinGlanceAppWidget(
-//                    receiver = MyAppWidgetReceiver::class.java,
-//                    preview = MyAppWidget(),
-//                    successCallback = null
-//                )
-
-            val manager = GlanceAppWidgetManager(context = this@MainActivity)
-            val widget = MyAppWidget()
-            val glanceIds =  manager.getGlanceIds(widget::class.java)
-            glanceIds.forEach {
-                widget.update(
-                    this@MainActivity,
-                    it
-                )
+        viewModel.getLunarDate(this.applicationContext){
+            lifecycleScope.launch {
+                update()
             }
         }
+    }
 
+    private suspend fun update() {
+        val manager = GlanceAppWidgetManager(context = this@MainActivity)
+        val widget = MyAppWidget()
+        val glanceIds = manager.getGlanceIds(widget::class.java)
+        glanceIds.forEach {
+            widget.update(
+                this@MainActivity,
+                it
+            )
+        }
     }
 
     override fun onResume() {
         super.onResume()
-        finish()
+        //finish()
     }
 }

@@ -22,7 +22,8 @@ class MainViewModel() : ViewModel() {
 
 
     fun getLunarDate(
-        applicationContext : Context
+        applicationContext : Context,
+        after: () -> Unit
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             val repository = ChineseCalenderRepository()
@@ -46,6 +47,7 @@ class MainViewModel() : ViewModel() {
             db.chnDateDao().insertDate(CHNDateEnity.covert(result))
 
             _lunarDate.value = result
+            after()
         }
     }
 }
