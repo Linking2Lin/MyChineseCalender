@@ -36,11 +36,13 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
 import androidx.room.Room
+import com.elvishew.xlog.XLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import lins.applications.appwidget.database.AppDataBase
 import lins.applications.appwidget.model.CHNDate
 import lins.applications.appwidget.model.CHNDateEnity
+import lins.libs.module_base.Logger
 
 private const val TAG = "MyAppWidget"
 
@@ -56,10 +58,10 @@ class MyAppWidget : GlanceAppWidget() {
 
         val date = withContext(Dispatchers.IO) {
 //            val dates =  db.chnDateDao().getAll()
-//            Log.d(TAG, "provideGlance: $dates")
+//            Logger.d(TAG, "provideGlance: $dates")
 //            dates.last()
             val re = db.chnDateDao().getLast()
-            Log.d(TAG, "provideGlance: $re")
+            Logger.d(TAG, "provideGlance: $re")
             re
         }
 
@@ -103,7 +105,7 @@ class MyAppWidget : GlanceAppWidget() {
 fun WidgetContent(date: CHNDateEnity?) {
     // Get the current size of the widget instance
     val size = LocalSize.current
-    Log.d(TAG, "WidgetContent updating for size: $size")
+    Logger.d(TAG, "WidgetContent updating for size: $size")
 
     // Use a default corner radius for all sizes
     val modifier = GlanceModifier
