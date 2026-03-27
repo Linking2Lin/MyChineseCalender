@@ -1,7 +1,13 @@
 package lins.applications.mychinesecalender.ui.content
 
+import android.content.Context
 import android.content.res.Configuration
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
@@ -14,8 +20,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.Surface
@@ -23,10 +33,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.glance.appwidget.GlanceAppWidgetManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import lins.applications.appwidget.MyAppWidget
+import lins.applications.appwidget.WIDGET_CUSTOM_IMAGE_FILE
+import java.io.File
+import java.io.FileOutputStream
 import lins.applications.appwidget.model.CHNDate
 import lins.applications.mychinesecalender.MainViewModel
 import lins.applications.mychinesecalender.ui.theme.MyChineseCalenderTheme
@@ -37,7 +56,56 @@ fun MainContent(
     modifier: Modifier = Modifier
 ) {
     val data = viewModel.lunarDate.value
-    MainContentStateless(data = data, modifier = modifier)
+    val context = LocalContext.current
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia(),
+        onResult = { uri ->
+            if (uri != null) {
+                saveImageToInternalStorage(context, uri)
+            }
+        }
+    )
+
+    Box(modifier = modifier.fillMaxSize()) {
+        MainContentStateless(data = data)
+
+        FloatingActionButton(
+            onClick = {
+                photoPickerLauncher.launch(
+                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                )
+            },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+        ) {
+            Icon(imageVector = Icons.Default.Image, contentDescription = "自定义组件图片")
+        }
+    }
+}
+
+private fun saveImageToInternalStorage(context: Context, uri: Uri) {
+    CoroutineScope(Dispatchers.IO).launch {
+        try {
+            val inputStream = context.contentResolver.openInputStream(uri) ?: return@launch
+            val file = File(context.filesDir, WIDGET_CUSTOM_IMAGE_FILE)
+            val outputStream = FileOutputStream(file)
+            inputStream.copyTo(outputStream)
+            inputStream.close()
+            outputStream.close()
+
+            // Update widget
+            val manager = GlanceAppWidgetManager(context)
+            val widget = MyAppWidget()
+            val glanceIds = manager.getGlanceIds(MyAppWidget::class.java)
+            glanceIds.forEach { glanceId ->
+                widget.update(context, glanceId)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 }
 
 @Composable
@@ -228,10 +296,18 @@ fun YiJiCard(
 @Composable
 fun MainContentPreview() {
     MyChineseCalenderTheme {
-        Surface(color = MaterialTheme.colorScheme.background) {
-            MainContentStateless(
-                data = CHNDate.test
-            )
+        Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                MainContentStateless(data = CHNDate.test)
+                FloatingActionButton(
+                    onClick = {},
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(16.dp)
+                ) {
+                    Icon(imageVector = Icons.Default.Image, contentDescription = "自定义组件图片")
+                }
+            }
         }
     }
 }
