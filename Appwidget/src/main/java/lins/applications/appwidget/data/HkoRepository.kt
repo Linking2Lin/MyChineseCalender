@@ -11,7 +11,7 @@ import lins.applications.appwidget.model.LunarDateResponse
 /**
  * @Author LinXuXu
  * @Date 2026/3/27 14:51
- * 
+ * 使用香港天文台API获取公历阴历对照
  */
 class HkoRepository {
     private val client = KtorClient.client
