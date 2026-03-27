@@ -14,6 +14,7 @@ import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.lifecycle.lifecycleScope
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import lins.applications.appwidget.MyAppWidget
 import lins.applications.appwidget.woker.SyncDateWorker
@@ -79,7 +80,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        //finish()
+//        lifecycleScope.launch {
+//            delay(1000)
+//            finish()
+//        }
     }
 
     companion object {
