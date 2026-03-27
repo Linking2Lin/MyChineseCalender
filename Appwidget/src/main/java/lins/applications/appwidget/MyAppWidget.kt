@@ -219,8 +219,7 @@ fun MediumWidgetLayout(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Transparent)
-            .padding(horizontal = 8.dp, vertical = 4.dp)
-            .clickable(actionRunCallback<RefreshAction>()),
+            .padding(horizontal = 8.dp, vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalAlignment = Alignment.Start,
     ) {
@@ -231,9 +230,8 @@ fun MediumWidgetLayout(
                 .fillMaxSize()
                 .cornerRadius(100.dp)
                 .background(GlanceTheme.colors.widgetBackground)
-                // 根据第一个组件的边距进行微调，让左侧图片更靠边缘，右侧留有一定的 Padding
-                //.padding(start = 10.dp, end = 10.dp)
-                .padding(11.dp),
+                .padding(11.dp)
+                .clickable(actionRunCallback<RefreshAction>()),
             verticalAlignment = Alignment.CenterVertically,
             horizontalAlignment = Alignment.Start,
         ) {
