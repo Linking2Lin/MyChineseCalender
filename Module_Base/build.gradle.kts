@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.android.library)
-    alias(libs.plugins.kotlin.android)
 }
 
 android {
@@ -29,9 +28,7 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
-    kotlinOptions {
-        jvmTarget = "11"
-    }
+
 }
 
 dependencies {
@@ -43,4 +40,13 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
 
     api(libs.com.elvishew.xlog)
+
+    // 引入 Ktor 网络请求框架
+    implementation(libs.ktor.client.core)
+    implementation(libs.ktor.client.android)
+    implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.ktor.serialization.kotlinx.json)
+
+    // 引入 Kotlinx JSON 序列化库
+    implementation(libs.kotlinx.serialization.json)
 }

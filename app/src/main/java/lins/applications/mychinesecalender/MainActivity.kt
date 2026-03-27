@@ -1,6 +1,8 @@
 package lins.applications.mychinesecalender
 
+import android.nfc.Tag
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -52,7 +54,15 @@ class MainActivity : ComponentActivity() {
 
         WorkManager.getInstance(this).enqueue(updateDateRequest)
 
+        lifecycleScope.launch {
+            viewModel.lunarData.collect { lunarInfo ->
+                if (lunarInfo != null) {
+                    Log.d(TAG,"今天是：${lunarInfo.lunarYear} ${lunarInfo.lunarDate}")
+                }
+            }
+        }
 
+        viewModel.getTodayLunarInfo()
     }
 
     private suspend fun update() {
@@ -70,5 +80,9 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         //finish()
+    }
+
+    companion object {
+        private const val TAG = "MainActivity"
     }
 }

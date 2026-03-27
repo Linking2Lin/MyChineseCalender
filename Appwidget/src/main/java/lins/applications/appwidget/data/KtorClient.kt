@@ -3,12 +3,15 @@ package lins.applications.appwidget.data
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.android.Android
 import io.ktor.client.plugins.DefaultRequest
+import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.defaultRequest
 import io.ktor.client.plugins.logging.DEFAULT
 import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
-import io.ktor.client.request.headers
+import io.ktor.http.ContentType
+import io.ktor.serialization.kotlinx.json.json
+import kotlinx.serialization.json.Json
 
 object KtorClient {
     val client = HttpClient(Android){
@@ -21,6 +24,20 @@ object KtorClient {
         }
 
         install(DefaultRequest)
+
+        // 安装 ContentNegotiation 插件，这是解析 JSON 的核心
+        install(ContentNegotiation) {
+            val jsonConfig = Json {
+                prettyPrint = true
+                isLenient = true       // 宽松模式，允许不规范的 JSON（如引号缺失）
+                ignoreUnknownKeys = true // 忽略未知字段，接口新增字段时不会崩溃
+            }
+            // 标准 JSON 响应（application/json）
+            json(jsonConfig)
+            // 兼容 HKO 等返回 JSON 内容却误报 text/html Content-Type 的 API
+            json(jsonConfig, contentType = ContentType.Text.Html)
+            json(jsonConfig, contentType = ContentType.Text.Plain)
+        }
 
         defaultRequest {
 //            headers {
