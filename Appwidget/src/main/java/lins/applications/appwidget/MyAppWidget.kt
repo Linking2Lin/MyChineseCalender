@@ -38,9 +38,14 @@ import androidx.glance.preview.Preview
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
+import androidx.glance.action.clickable
+import androidx.glance.appwidget.action.actionRunCallback
 import kotlinx.coroutines.Dispatchers
+import lins.applications.appwidget.action.RefreshAction
 import kotlinx.coroutines.withContext
 import lins.applications.appwidget.data.HkoRepository
+import lins.applications.appwidget.database.AppDataBase
+import lins.applications.appwidget.model.LunarDateEntity
 import lins.applications.appwidget.model.LunarDateResponse
 import lins.libs.module_base.Logger
 import java.io.File
@@ -56,18 +61,36 @@ class MyAppWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
 
-        // 获取 LunarDateResponse
+        // 优先从数据库缓存读取，缓存未命中时再走网络
         val date = withContext(Dispatchers.IO) {
+            val today = LocalDate.now()
+            val dateString = today.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+
+            val db = androidx.room.Room.databaseBuilder(
+                context, AppDataBase::class.java, "database-name"
+            ).fallbackToDestructiveMigration(dropAllTables = true).build()
+
+            // 1. 尝试读取今天的缓存
+            val cached = db.lunarDateDao().getByDate(dateString)
+            if (cached != null) {
+                Log.d(TAG, "provideGlance: cache hit for $dateString")
+                return@withContext cached.toResponse()
+            }
+
+            // 2. 缓存未命中 → 从 HkoRepository 拉取
             try {
-                val today = LocalDate.now()
-                val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-                val dateString = today.format(formatter)
                 val response = HkoRepository().fetchLunarDate(dateString)
-                Logger.d(TAG, "provideGlance fetched: $response")
+                if (response != null) {
+                    db.lunarDateDao().insertOrReplace(
+                        LunarDateEntity.fromResponse(dateString, response)
+                    )
+                    Log.d(TAG, "provideGlance: fetched & cached for $dateString")
+                }
                 response
             } catch (e: Exception) {
-                Logger.d(TAG, "provideGlance fetch failed: ${e.message}")
-                null
+                Log.e(TAG, "provideGlance: fetch failed", e)
+                // 3. 网络也失败 → 尝试用最近一条缓存兜底
+                db.lunarDateDao().getLast()?.toResponse()
             }
         }
 
@@ -167,7 +190,8 @@ fun SmallWidgetLayout(date: LunarDateResponse, modifier: GlanceModifier = Glance
             .fillMaxSize()
             .cornerRadius(100.dp)
             .background(GlanceTheme.colors.widgetBackground)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            .padding(horizontal = 14.dp, vertical = 10.dp)
+            .clickable(actionRunCallback<RefreshAction>()),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -195,8 +219,8 @@ fun MediumWidgetLayout(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Transparent)
-            // 根据第一个组件的边距进行微调，让左侧图片更靠边缘，右侧留有一定的 Padding
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .padding(horizontal = 8.dp, vertical = 4.dp)
+            .clickable(actionRunCallback<RefreshAction>()),
         verticalAlignment = Alignment.CenterVertically,
         horizontalAlignment = Alignment.Start,
     ) {

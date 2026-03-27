@@ -68,7 +68,7 @@ class MainViewModel() : ViewModel() {
             val db =  Room.databaseBuilder(
                 applicationContext,
                 AppDataBase::class.java, "database-name"
-            ).build()
+            ).fallbackToDestructiveMigration(dropAllTables = true).build()
 
             // calendar.timeInMillis
 

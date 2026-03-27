@@ -3,82 +3,77 @@ package lins.applications.appwidget.receiver
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.util.Log
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.room.Room
-import com.elvishew.xlog.XLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import lins.applications.appwidget.MyAppWidget
-import lins.applications.appwidget.data.ChineseCalenderRepository
+import lins.applications.appwidget.data.HkoRepository
 import lins.applications.appwidget.database.AppDataBase
-import lins.applications.appwidget.model.CHNDateEnity
+import lins.applications.appwidget.model.LunarDateEntity
 import lins.libs.module_base.Logger
-import java.lang.Exception
-import java.util.Calendar
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import kotlin.coroutines.CoroutineContext
 import kotlin.coroutines.EmptyCoroutineContext
 
 private const val TAG = "DateChangeReceiver"
+
 class DateChangeReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        Logger.d(TAG, "onReceive: $context $intent")
-        context.let {
-            intent.let {
-                if (it.action == Intent.ACTION_DATE_CHANGED
-                    || it.action == Intent.ACTION_TIME_CHANGED
-                    || it.action == Intent.ACTION_BATTERY_CHANGED
-                    || it.action == Intent.ACTION_TIMEZONE_CHANGED
-                    || it.action == Intent.ACTION_TIME_TICK
-                ) {
-                    goAsync {
-                        val repository = ChineseCalenderRepository()
-                        val calendar = Calendar.getInstance()
-                        val result = repository.getLunarDate(
-                            currentYear = calendar.get(Calendar.YEAR).toString(),
-                            currentMonth = (calendar.get(Calendar.MONTH) + 1).toString(),
-                            currentDay = calendar.get(Calendar.DAY_OF_MONTH).toString()
-                        )
-                        Logger.d(TAG, "onReceive: $result")
+        Logger.d(TAG, "onReceive: ${intent.action}")
+
+        if (intent.action == Intent.ACTION_DATE_CHANGED
+            || intent.action == Intent.ACTION_TIME_CHANGED
+            || intent.action == Intent.ACTION_BATTERY_CHANGED
+            || intent.action == Intent.ACTION_TIMEZONE_CHANGED
+            || intent.action == Intent.ACTION_TIME_TICK
+        ) {
+            goAsync {
+                val today = LocalDate.now()
+                val dateString = today.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+
+                // 1. 从 HkoRepository 获取农历数据
+                val response = try {
+                    HkoRepository().fetchLunarDate(dateString)
+                } catch (e: Exception) {
+                    Logger.d(TAG, "onReceive: fetch failed: ${e.message}")
+                    null
+                }
+
+                // 2. 存入数据库
+                if (response != null) {
+                    try {
                         val db = Room.databaseBuilder(
                             context,
-                            AppDataBase::class.java, "database-name"
-                        ).build()
+                            AppDataBase::class.java,
+                            "database-name"
+                        ).fallbackToDestructiveMigration(dropAllTables = true).build()
 
-                        // calendar.timeInMillis
-
-                        //            if (db.chnDateDao().getById(result.year.hashCode()) != null){
-                        //                db.chnDateDao().deleteById(result.year.hashCode())
-                        //            }
-
-                        db.chnDateDao().insertDate(CHNDateEnity.covert(result))
-
-                        Logger.d(TAG, "onReceive: last " + db.chnDateDao().getAll().last())
-
-                        runCatching {
-
-
-                            GlanceAppWidgetManager(context)
-                                .getGlanceIds(MyAppWidget::class.java).forEach { glanceId ->
-                                    Logger.d(TAG, "onReceive: glanceId : $glanceId")
-                                    MyAppWidget().update(context, glanceId)
-                                }
-
-                        }.onFailure { exception ->
-                            Logger.d(TAG, "onReceive: exc : " + exception.stackTraceToString())
-                        }
+                        val entity = LunarDateEntity.fromResponse(dateString, response)
+                        db.lunarDateDao().insertOrReplace(entity)
+                        db.lunarDateDao().cleanup()
+                        Logger.d(TAG, "onReceive: saved to DB: $entity")
+                    } catch (e: Exception) {
+                        Logger.d(TAG, "onReceive: DB write failed: ${e.message}")
                     }
                 }
+
+                // 3. 触发 widget 更新
+                runCatching {
+                    GlanceAppWidgetManager(context)
+                        .getGlanceIds(MyAppWidget::class.java).forEach { glanceId ->
+                            Logger.d(TAG, "onReceive: updating glanceId: $glanceId")
+                            MyAppWidget().update(context, glanceId)
+                        }
+                }.onFailure { exception ->
+                    Logger.d(TAG, "onReceive: update failed: " + exception.stackTraceToString())
+                }
             }
-
-
         }
-
-
     }
-
 }
 
 fun BroadcastReceiver.goAsync(
@@ -86,14 +81,13 @@ fun BroadcastReceiver.goAsync(
     block: suspend CoroutineScope.(BroadcastReceiver.PendingResult) -> Unit
 ) {
     val pendingResult = goAsync()
-    @OptIn(DelicateCoroutinesApi::class) // Must run globally; there's no teardown callback.
+    @OptIn(DelicateCoroutinesApi::class)
     GlobalScope.launch(context) {
         try {
             block(pendingResult)
-        }catch (e: Exception){
-            Logger.d(TAG, "goAsync: e :" + e.stackTraceToString())
-        }
-        finally {
+        } catch (e: Exception) {
+            Logger.d(TAG, "goAsync: e: " + e.stackTraceToString())
+        } finally {
             pendingResult.finish()
         }
     }

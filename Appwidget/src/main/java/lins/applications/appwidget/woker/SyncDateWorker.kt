@@ -1,18 +1,17 @@
 package lins.applications.appwidget.woker
 
 import android.content.Context
-import android.icu.util.Calendar
-import android.util.Log
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.room.Room
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.elvishew.xlog.XLog
 import lins.applications.appwidget.MyAppWidget
-import lins.applications.appwidget.data.ChineseCalenderRepository
+import lins.applications.appwidget.data.HkoRepository
 import lins.applications.appwidget.database.AppDataBase
-import lins.applications.appwidget.model.CHNDateEnity
+import lins.applications.appwidget.model.LunarDateEntity
 import lins.libs.module_base.Logger
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 private const val TAG = "SyncDateWorker"
 
@@ -23,36 +22,51 @@ class SyncDateWorker(
     appContext, workerParams
 ) {
     override suspend fun doWork(): Result {
+        Logger.d(TAG, "doWork: start syncing lunar date from HKO")
 
-        val repository = ChineseCalenderRepository()
-        val calender = Calendar.getInstance()
-        val requestResult = repository.getLunarDate(
-            calender.get(Calendar.YEAR).toString(),
-            (calender.get(Calendar.MONTH) + 1).toString(),
-            calender.get(Calendar.DAY_OF_MONTH).toString()
-            )
+        val today = LocalDate.now()
+        val dateString = today.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
 
-        val db = Room.databaseBuilder(
-            context = applicationContext,
-            klass = AppDataBase::class.java,
-            name = "database-name"
-        ).build()
+        // 1. 从 HkoRepository 获取农历数据
+        val response = try {
+            HkoRepository().fetchLunarDate(dateString)
+        } catch (e: Exception) {
+            Logger.d(TAG, "doWork: fetch failed: ${e.message}")
+            null
+        }
 
-        db.chnDateDao().insertDate(CHNDateEnity.covert(requestResult))
+        if (response == null) {
+            Logger.d(TAG, "doWork: HKO returned null, will retry")
+            return Result.retry()
+        }
 
-        Logger.d(TAG, "doWork: $requestResult")
+        // 2. 存入数据库
+        try {
+            val db = Room.databaseBuilder(
+                applicationContext,
+                AppDataBase::class.java,
+                "database-name"
+            ).fallbackToDestructiveMigration(dropAllTables = true).build()
+
+            val entity = LunarDateEntity.fromResponse(dateString, response)
+            db.lunarDateDao().insertOrReplace(entity)
+            db.lunarDateDao().cleanup()
+            Logger.d(TAG, "doWork: saved to DB: $entity")
+        } catch (e: Exception) {
+            Logger.d(TAG, "doWork: DB write failed: ${e.message}")
+        }
+
+        // 3. 触发 widget 更新
         runCatching {
             GlanceAppWidgetManager(applicationContext)
                 .getGlanceIds(MyAppWidget::class.java).forEach { glanceId ->
-                    Logger.d(TAG, "onReceive: glanceId : $glanceId")
+                    Logger.d(TAG, "doWork: updating glanceId: $glanceId")
                     MyAppWidget().update(applicationContext, glanceId)
                 }
-
         }.onFailure { exception ->
-            Logger.d(TAG, "onReceive: exc : " + exception.stackTraceToString())
+            Logger.d(TAG, "doWork: widget update failed: " + exception.stackTraceToString())
         }
 
         return Result.success()
     }
-
 }

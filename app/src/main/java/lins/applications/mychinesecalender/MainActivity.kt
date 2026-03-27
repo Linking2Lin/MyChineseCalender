@@ -59,6 +59,7 @@ class MainActivity : ComponentActivity() {
             viewModel.lunarData.collect { lunarInfo ->
                 if (lunarInfo != null) {
                     Log.d(TAG,"今天是：${lunarInfo.lunarYear} ${lunarInfo.lunarDate}")
+                    update()
                 }
             }
         }
