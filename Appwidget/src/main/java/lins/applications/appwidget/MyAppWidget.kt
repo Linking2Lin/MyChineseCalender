@@ -233,7 +233,7 @@ fun MediumWidgetLayout(
                 .background(GlanceTheme.colors.widgetBackground)
                 // 根据第一个组件的边距进行微调，让左侧图片更靠边缘，右侧留有一定的 Padding
                 //.padding(start = 10.dp, end = 10.dp)
-                .padding(12.dp),
+                .padding(11.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalAlignment = Alignment.Start,
         ) {
@@ -271,7 +271,7 @@ fun MediumWidgetLayout(
                     text = date.lunarYear,
                     style = TextStyle(
                         color = GlanceTheme.colors.onSurface,
-                        fontSize = 17.sp,
+                        fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
                     ),
                     maxLines = 1,
@@ -284,7 +284,7 @@ fun MediumWidgetLayout(
                     text = date.lunarDate,
                     style = TextStyle(
                         color = GlanceTheme.colors.onSurface,
-                        fontSize = 17.sp,
+                        fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
                     ),
                     maxLines = 1,
