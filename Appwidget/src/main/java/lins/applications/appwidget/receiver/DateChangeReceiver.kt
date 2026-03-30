@@ -21,15 +21,16 @@ import kotlin.coroutines.EmptyCoroutineContext
 
 private const val TAG = "DateChangeReceiver"
 
+/**
+ * 辅助触发器：监听系统日期/时区变更，触发 Widget 数据刷新。
+ * 主要更新机制为 appwidget-provider 的 updatePeriodMillis（每 30 分钟）。
+ */
 class DateChangeReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         Logger.d(TAG, "onReceive: ${intent.action}")
 
         if (intent.action == Intent.ACTION_DATE_CHANGED
-            || intent.action == Intent.ACTION_TIME_CHANGED
-            || intent.action == Intent.ACTION_BATTERY_CHANGED
             || intent.action == Intent.ACTION_TIMEZONE_CHANGED
-            || intent.action == Intent.ACTION_TIME_TICK
         ) {
             goAsync {
                 val today = LocalDate.now()

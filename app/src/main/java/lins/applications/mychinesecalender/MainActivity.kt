@@ -1,6 +1,5 @@
 package lins.applications.mychinesecalender
 
-import android.nfc.Tag
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -12,9 +11,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
 import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.lifecycle.lifecycleScope
+import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import lins.applications.appwidget.MyAppWidget
 import lins.applications.appwidget.woker.SyncDateWorker
@@ -38,27 +37,29 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        viewModel.getLunarDate(this.applicationContext){
+        viewModel.getLunarDate(this.applicationContext) {
             lifecycleScope.launch {
                 //update()
             }
         }
 
+        // ── WorkManager 兜底：每 6 小时同步一次 ──
         val updateDateRequest = PeriodicWorkRequestBuilder<SyncDateWorker>(
-            repeatInterval = 1,
+            repeatInterval = 6,
             repeatIntervalTimeUnit = java.util.concurrent.TimeUnit.HOURS,
-//            flexTimeInterval = 1,
-//            flexTimeIntervalUnit = java.util.concurrent.TimeUnit.HOURS,
-        )
-            .setInitialDelay(1, java.util.concurrent.TimeUnit.HOURS)
-            .build()
+        ).build()
 
-        WorkManager.getInstance(this).enqueue(updateDateRequest)
+        // 使用 enqueueUniquePeriodicWork 避免重复注册
+        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
+            "sync_lunar_date",
+            ExistingPeriodicWorkPolicy.KEEP,
+            updateDateRequest
+        )
 
         lifecycleScope.launch {
             viewModel.lunarData.collect { lunarInfo ->
                 if (lunarInfo != null) {
-                    Log.d(TAG,"今天是：${lunarInfo.lunarYear} ${lunarInfo.lunarDate}")
+                    Log.d(TAG, "今天是：${lunarInfo.lunarYear} ${lunarInfo.lunarDate}")
                     update()
                 }
             }
@@ -81,10 +82,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-//        lifecycleScope.launch {
-//            delay(1000)
-//            finish()
-//        }
     }
 
     companion object {
