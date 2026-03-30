@@ -228,8 +228,10 @@ fun MediumWidgetLayout(
         Row(
             modifier = modifier
                 .fillMaxSize()
-                .cornerRadius(100.dp)
-                .background(GlanceTheme.colors.widgetBackground)
+                // GlanceTheme.colors.widgetBackground 本质上通常映射到系统的 Surface Color 或者定义的 Widget Background Color，
+                // 由于 Glance 暂不支持直接传入 Compose Brush 来绘制渐变，
+                // 我们通过一个带有 gradient 渐变的 XML drawable 来实现渐变效果。
+                .background(ImageProvider(R.drawable.widget_gradient_background))
                 .padding(11.dp)
                 .clickable(actionRunCallback<RefreshAction>()),
             verticalAlignment = Alignment.CenterVertically,
