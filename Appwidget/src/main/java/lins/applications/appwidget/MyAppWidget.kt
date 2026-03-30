@@ -247,7 +247,7 @@ fun MediumWidgetLayout(
                 )
             } else {
                 Image(
-                    provider = ImageProvider(R.drawable.img_maodie),
+                    provider = ImageProvider(R.mipmap.ic_launcher_round),
                     contentDescription = "默认头像",
                     contentScale = ContentScale.Crop,
                     modifier = GlanceModifier
