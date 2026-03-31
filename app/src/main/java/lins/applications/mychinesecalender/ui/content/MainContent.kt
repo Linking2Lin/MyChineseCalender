@@ -285,7 +285,6 @@ fun DetailInfoCard(data: CHNDate) {
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             InfoRow(label = "黄历", value = data.huangLiDate)
-            InfoRow(label = "回历", value = data.huiLiDate)
             InfoRow(label = "五行", value = data.wuXing)
             InfoRow(label = "星神", value = data.zhiRiXingShen)
         }
