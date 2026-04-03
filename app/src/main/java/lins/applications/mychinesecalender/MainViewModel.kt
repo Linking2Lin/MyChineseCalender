@@ -6,17 +6,18 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import androidx.room.Room
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import lins.applications.appwidget.data.ChineseCalenderRepository
 import lins.applications.appwidget.data.HkoRepository
 import lins.applications.appwidget.database.AppDataBase
 import lins.applications.appwidget.model.CHNDate
 import lins.applications.appwidget.model.CHNDateEnity
+import lins.applications.appwidget.model.LunarDateEntity
 import lins.applications.appwidget.model.LunarDateResponse
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -36,19 +37,38 @@ class MainViewModel() : ViewModel() {
 
     /**
      * 获取今天的农历信息
+     * 优化：优先从数据库缓存读取，实现“秒开”，然后再从网络拉取最新数据刷新并覆盖缓存。
      */
-    fun getTodayLunarInfo() {
+    fun getTodayLunarInfo(context: Context) {
         viewModelScope.launch {
-            // 1. 获取今天的公历日期，并格式化为 YYYY-MM-DD
             val today = LocalDate.now()
             val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
             val dateString = today.format(formatter)
 
-            // 2. 发起网络请求 (由于在 viewModelScope 中，这是在 IO/Default 线程池挂起的，不卡顿UI)
-            val result = repository.fetchLunarDate(dateString)
+            val db = AppDataBase.getInstance(context)
 
-            // 3. 将结果推送到 StateFlow，通知 UI 刷新
-            _lunarData.value = result
+            // 1. 优先读取数据库缓存，让 UI 秒级渲染
+            val cached = withContext(Dispatchers.IO) {
+                db.lunarDateDao().getByDate(dateString)
+            }
+            if (cached != null) {
+                _lunarData.value = cached.toResponse()
+            }
+
+            // 2. 异步发起网络请求获取最新数据 (在 IO 线程)
+            val result = withContext(Dispatchers.IO) {
+                repository.fetchLunarDate(dateString)
+            }
+
+            // 3. 网络结果如果成功，则更新 UI，同时刷新本地数据库
+            if (result != null) {
+                _lunarData.value = result
+                withContext(Dispatchers.IO) {
+                    db.lunarDateDao().insertOrReplace(
+                        LunarDateEntity.fromResponse(dateString, result)
+                    )
+                }
+            }
         }
     }
 
@@ -65,16 +85,7 @@ class MainViewModel() : ViewModel() {
                 currentMonth = (calendar.get(Calendar.MONTH) + 1).toString(),
                 currentDay = calendar.get(Calendar.DAY_OF_MONTH).toString()
             )
-            val db =  Room.databaseBuilder(
-                applicationContext,
-                AppDataBase::class.java, "database-name"
-            ).fallbackToDestructiveMigration(dropAllTables = true).build()
-
-            // calendar.timeInMillis
-
-//            if (db.chnDateDao().getById(result.year.hashCode()) != null){
-//                db.chnDateDao().deleteById(result.year.hashCode())
-//            }
+            val db = AppDataBase.getInstance(applicationContext)
 
             db.chnDateDao().insertDate(CHNDateEnity.covert(result))
 

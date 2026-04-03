@@ -66,9 +66,7 @@ class MyAppWidget : GlanceAppWidget() {
             val today = LocalDate.now()
             val dateString = today.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
 
-            val db = androidx.room.Room.databaseBuilder(
-                context, AppDataBase::class.java, "database-name"
-            ).fallbackToDestructiveMigration(dropAllTables = true).build()
+            val db = AppDataBase.getInstance(context)
 
             // 1. 尝试读取今天的缓存
             val cached = db.lunarDateDao().getByDate(dateString)

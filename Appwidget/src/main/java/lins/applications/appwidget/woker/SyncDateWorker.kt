@@ -42,11 +42,7 @@ class SyncDateWorker(
 
         // 2. 存入数据库
         try {
-            val db = Room.databaseBuilder(
-                applicationContext,
-                AppDataBase::class.java,
-                "database-name"
-            ).fallbackToDestructiveMigration(dropAllTables = true).build()
+            val db = AppDataBase.getInstance(applicationContext)
 
             val entity = LunarDateEntity.fromResponse(dateString, response)
             db.lunarDateDao().insertOrReplace(entity)

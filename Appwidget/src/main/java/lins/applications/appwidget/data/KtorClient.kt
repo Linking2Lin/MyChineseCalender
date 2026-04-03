@@ -16,6 +16,9 @@ import kotlinx.serialization.json.Json
 object KtorClient {
     val client = HttpClient(Android){
         engine {
+            // 设置网络请求的超时时间，防止在弱网环境下长时间阻塞
+            connectTimeout = 10_000 // 10秒连接超时
+            socketTimeout = 10_000  // 10秒读取超时
         }
 
         install(Logging) {

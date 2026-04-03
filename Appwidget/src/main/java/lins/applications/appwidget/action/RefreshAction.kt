@@ -58,9 +58,7 @@ class RefreshAction : ActionCallback {
                 try {
                     val response = HkoRepository().fetchLunarDate(dateString)
                     if (response != null) {
-                        val db = Room.databaseBuilder(
-                            context, AppDataBase::class.java, "database-name"
-                        ).fallbackToDestructiveMigration(dropAllTables = true).build()
+                        val db = AppDataBase.getInstance(context)
 
                         db.lunarDateDao().insertOrReplace(
                             LunarDateEntity.fromResponse(dateString, response)

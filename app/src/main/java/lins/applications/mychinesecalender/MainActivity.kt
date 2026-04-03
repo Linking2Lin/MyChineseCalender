@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
 import androidx.glance.appwidget.GlanceAppWidgetManager
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
@@ -57,15 +59,18 @@ class MainActivity : ComponentActivity() {
         )
 
         lifecycleScope.launch {
-            viewModel.lunarData.collect { lunarInfo ->
-                if (lunarInfo != null) {
-                    Log.d(TAG, "今天是：${lunarInfo.lunarYear} ${lunarInfo.lunarDate}")
-                    update()
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                viewModel.lunarData.collect { lunarInfo ->
+                    if (lunarInfo != null) {
+                        Log.d(TAG, "今天是：${lunarInfo.lunarYear} ${lunarInfo.lunarDate}")
+                        update()
+                    }
                 }
             }
         }
 
-        viewModel.getTodayLunarInfo()
+        // 修改：传入 ApplicationContext，以支持 ViewModel 优先加载缓存
+        viewModel.getTodayLunarInfo(this.applicationContext)
     }
 
     private suspend fun update() {
