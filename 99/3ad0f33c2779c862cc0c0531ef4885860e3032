@@ -1,0 +1,14 @@
+Appwidget/src/main/java/lins/applications/appwidget/MyAppWidget.kt
+  h_487dfb9c222ff6 6-10,123-125,132-149,215-216,271,278
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.1",
+  "base_commit_sha": "993ad0f33c2779c862cc0c0531ef4885860e3032",
+  "prompts": {},
+  "humans": {
+    "h_487dfb9c222ff6": {
+      "author": "Linking Lin <Linking2Lin@Outlook.com>"
+    }
+  }
+}
