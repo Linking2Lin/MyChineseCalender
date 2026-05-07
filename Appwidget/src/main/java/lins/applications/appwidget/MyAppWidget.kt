@@ -3,6 +3,11 @@ package lins.applications.appwidget
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Paint
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
+import android.graphics.Rect
 import android.util.Log
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
@@ -115,12 +120,32 @@ class MyAppWidget : GlanceAppWidget() {
             return try {
                 val file = File(context.filesDir, WIDGET_CUSTOM_IMAGE_FILE)
                 if (file.exists()) {
-                    BitmapFactory.decodeFile(file.absolutePath)
+                    val bitmap = BitmapFactory.decodeFile(file.absolutePath)
+                    // 【老兵建议】在加载后立即裁剪为圆形，防止系统重启时 Glance 装饰器还没生效导致的“先方后圆”闪烁
+                    bitmap?.let { getCircleBitmap(it) }
                 } else null
             } catch (e: Exception) {
                 Log.e(TAG, "loadCustomImage failed", e)
                 null
             }
+        }
+
+        /**
+         * 将 Bitmap 裁剪为正圆形
+         */
+        private fun getCircleBitmap(bitmap: Bitmap): Bitmap {
+            val size = Math.min(bitmap.width, bitmap.height)
+            val output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(output)
+            val paint = Paint()
+            val rect = Rect(0, 0, size, size)
+
+            paint.isAntiAlias = true
+            canvas.drawARGB(0, 0, 0, 0)
+            canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint)
+            paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
+            canvas.drawBitmap(bitmap, rect, rect, paint)
+            return output
         }
     }
 
@@ -187,7 +212,8 @@ fun SmallWidgetLayout(date: LunarDateResponse, modifier: GlanceModifier = Glance
         modifier = modifier
             .fillMaxSize()
             .cornerRadius(100.dp)
-            .background(GlanceTheme.colors.widgetBackground)
+            // 使用 XML Drawable 作为背景，系统底层绘制圆角更早更稳定
+            .background(ImageProvider(R.drawable.widget_gradient_background))
             .padding(horizontal = 14.dp, vertical = 10.dp)
             .clickable(actionRunCallback<RefreshAction>()),
         contentAlignment = Alignment.Center,
@@ -242,18 +268,14 @@ fun MediumWidgetLayout(
                     provider = ImageProvider(customBitmap),
                     contentDescription = "自定义头像",
                     contentScale = ContentScale.Crop,
-                    modifier = GlanceModifier
-                        .size(66.dp)
-                        .cornerRadius(100.dp),
+                    modifier = GlanceModifier.size(66.dp), // 图片已在 IO 线程预裁剪为圆形
                 )
             } else {
                 Image(
                     provider = ImageProvider(R.mipmap.ic_launcher_round),
                     contentDescription = "默认头像",
                     contentScale = ContentScale.Crop,
-                    modifier = GlanceModifier
-                        .size(66.dp)
-                        .cornerRadius(100.dp),
+                    modifier = GlanceModifier.size(66.dp),
                 )
             }
 
