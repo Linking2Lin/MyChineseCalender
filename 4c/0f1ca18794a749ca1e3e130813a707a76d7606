@@ -1,0 +1,18 @@
+gradle/wrapper/gradle-wrapper.properties
+  h_487dfb9c222ff6 1,4-5
+gradle/libs.versions.toml
+  h_487dfb9c222ff6 2-3,10,14-15,20
+gradle.properties
+  h_487dfb9c222ff6 24-25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.4.4",
+  "base_commit_sha": "4c0f1ca18794a749ca1e3e130813a707a76d7606",
+  "prompts": {},
+  "humans": {
+    "h_487dfb9c222ff6": {
+      "author": "Linking Lin <Linking2Lin@Outlook.com>"
+    }
+  }
+}
