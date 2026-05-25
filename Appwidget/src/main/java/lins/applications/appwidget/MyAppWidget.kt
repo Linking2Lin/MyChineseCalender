@@ -60,7 +60,7 @@ import java.time.format.DateTimeFormatter
 private const val TAG = "MyAppWidget"
 
 /** 自定义头像文件名（与 MainContent 中保存位置一致） */
-const val WIDGET_CUSTOM_IMAGE_FILE = "widget_custom_image.jpg"
+const val WIDGET_CUSTOM_IMAGE_FILE = "widget_custom_image.png"
 
 class MyAppWidget : GlanceAppWidget() {
 
@@ -114,38 +114,19 @@ class MyAppWidget : GlanceAppWidget() {
 
         /**
          * 从内部存储加载用户自定义的 widget 头像图片。
+         * 文件已在保存时预裁剪为圆形 PNG，这里直接解码即可。
          * 如果不存在或读取失败则返回 null。
          */
         fun loadCustomImage(context: Context): Bitmap? {
             return try {
                 val file = File(context.filesDir, WIDGET_CUSTOM_IMAGE_FILE)
                 if (file.exists()) {
-                    val bitmap = BitmapFactory.decodeFile(file.absolutePath)
-                    // 【老兵建议】在加载后立即裁剪为圆形，防止系统重启时 Glance 装饰器还没生效导致的“先方后圆”闪烁
-                    bitmap?.let { getCircleBitmap(it) }
+                    BitmapFactory.decodeFile(file.absolutePath)
                 } else null
             } catch (e: Exception) {
                 Log.e(TAG, "loadCustomImage failed", e)
                 null
             }
-        }
-
-        /**
-         * 将 Bitmap 裁剪为正圆形
-         */
-        private fun getCircleBitmap(bitmap: Bitmap): Bitmap {
-            val size = Math.min(bitmap.width, bitmap.height)
-            val output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-            val canvas = Canvas(output)
-            val paint = Paint()
-            val rect = Rect(0, 0, size, size)
-
-            paint.isAntiAlias = true
-            canvas.drawARGB(0, 0, 0, 0)
-            canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint)
-            paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
-            canvas.drawBitmap(bitmap, rect, rect, paint)
-            return output
         }
     }
 
@@ -156,6 +137,24 @@ class MyAppWidget : GlanceAppWidget() {
             BIG_SQUARE
         )
     )
+}
+
+/**
+ * 将 Bitmap 裁剪为正圆形，供保存图片时使用。
+ */
+fun getCircleBitmap(bitmap: Bitmap): Bitmap {
+    val size = Math.min(bitmap.width, bitmap.height)
+    val output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(output)
+    val paint = Paint()
+    val rect = Rect(0, 0, size, size)
+
+    paint.isAntiAlias = true
+    canvas.drawARGB(0, 0, 0, 0)
+    canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint)
+    paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
+    canvas.drawBitmap(bitmap, rect, rect, paint)
+    return output
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -268,14 +267,18 @@ fun MediumWidgetLayout(
                     provider = ImageProvider(customBitmap),
                     contentDescription = "自定义头像",
                     contentScale = ContentScale.Crop,
-                    modifier = GlanceModifier.size(66.dp), // 图片已在 IO 线程预裁剪为圆形
+                    modifier = GlanceModifier
+                        .size(66.dp)
+                        .cornerRadius(33.dp), // 双重保险：RemoteViews 级别圆形裁剪，重启缓存恢复后仍生效
                 )
             } else {
                 Image(
                     provider = ImageProvider(R.mipmap.ic_launcher_round),
                     contentDescription = "默认头像",
                     contentScale = ContentScale.Crop,
-                    modifier = GlanceModifier.size(66.dp),
+                    modifier = GlanceModifier
+                        .size(66.dp)
+                        .cornerRadius(33.dp),
                 )
             }
 

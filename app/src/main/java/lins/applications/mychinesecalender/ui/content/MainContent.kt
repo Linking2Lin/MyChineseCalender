@@ -52,6 +52,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import lins.applications.appwidget.MyAppWidget
 import lins.applications.appwidget.WIDGET_CUSTOM_IMAGE_FILE
+import lins.applications.appwidget.getCircleBitmap
 import java.io.File
 import java.io.FileOutputStream
 import lins.applications.appwidget.model.CHNDate
@@ -165,12 +166,14 @@ private fun saveImageToInternalStorage(context: Context, uri: Uri) {
                 bitmap
             }
 
-            // 5. 压缩为 JPEG 保存
+            // 5. 裁剪为圆形后以 PNG 保存（PNG 支持透明通道）
+            val circular = getCircleBitmap(scaled)
+            if (circular !== scaled) scaled.recycle()
             val file = File(context.filesDir, WIDGET_CUSTOM_IMAGE_FILE)
             FileOutputStream(file).use { fos ->
-                scaled.compress(Bitmap.CompressFormat.JPEG, 85, fos)
+                circular.compress(Bitmap.CompressFormat.PNG, 100, fos)
             }
-            scaled.recycle()
+            circular.recycle()
 
             // 6. 刷新所有 Widget
             val manager = GlanceAppWidgetManager(context)
