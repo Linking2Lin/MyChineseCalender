@@ -8,11 +8,11 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import lins.applications.appwidget.dao.CHNDateDao
 import lins.applications.appwidget.dao.LunarDateDao
-import lins.applications.appwidget.model.CHNDateEnity
+import lins.applications.appwidget.model.CHNDateEntity
 import lins.applications.appwidget.model.LunarDateEntity
 
 @Database(
-    entities = [CHNDateEnity::class, LunarDateEntity::class],
+    entities = [CHNDateEntity::class, LunarDateEntity::class],
     version = 2,
     exportSchema = false
 )

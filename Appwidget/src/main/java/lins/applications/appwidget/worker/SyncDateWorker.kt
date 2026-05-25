@@ -1,4 +1,4 @@
-package lins.applications.appwidget.woker
+package lins.applications.appwidget.worker
 
 import android.content.Context
 import androidx.glance.appwidget.GlanceAppWidgetManager

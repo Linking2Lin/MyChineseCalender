@@ -66,40 +66,47 @@ class MyAppWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
 
-        // 优先从数据库缓存读取，缓存未命中时再走网络
-        val date = withContext(Dispatchers.IO) {
-            val today = LocalDate.now()
-            val dateString = today.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+        var date: LunarDateResponse? = null
+        var customBitmap: Bitmap? = null
 
-            val db = AppDataBase.getInstance(context)
+        try {
+            // 优先从数据库缓存读取，缓存未命中时再走网络
+            date = withContext(Dispatchers.IO) {
+                val today = LocalDate.now()
+                val dateString = today.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
 
-            // 1. 尝试读取今天的缓存
-            val cached = db.lunarDateDao().getByDate(dateString)
-            if (cached != null) {
-                Log.d(TAG, "provideGlance: cache hit for $dateString")
-                return@withContext cached.toResponse()
-            }
+                val db = AppDataBase.getInstance(context)
 
-            // 2. 缓存未命中 → 从 HkoRepository 拉取
-            try {
-                val response = HkoRepository().fetchLunarDate(dateString)
-                if (response != null) {
-                    db.lunarDateDao().insertOrReplace(
-                        LunarDateEntity.fromResponse(dateString, response)
-                    )
-                    Log.d(TAG, "provideGlance: fetched & cached for $dateString")
+                // 1. 尝试读取今天的缓存
+                val cached = db.lunarDateDao().getByDate(dateString)
+                if (cached != null) {
+                    Log.d(TAG, "provideGlance: cache hit for $dateString")
+                    return@withContext cached.toResponse()
                 }
-                response
-            } catch (e: Exception) {
-                Log.e(TAG, "provideGlance: fetch failed", e)
-                // 3. 网络也失败 → 尝试用最近一条缓存兜底
-                db.lunarDateDao().getLast()?.toResponse()
-            }
-        }
 
-        // 预加载自定义图片 Bitmap（IO 线程）
-        val customBitmap = withContext(Dispatchers.IO) {
-            loadCustomImage(context)
+                // 2. 缓存未命中 → 从 HkoRepository 拉取
+                try {
+                    val response = HkoRepository().fetchLunarDate(dateString)
+                    if (response != null) {
+                        db.lunarDateDao().insertOrReplace(
+                            LunarDateEntity.fromResponse(dateString, response)
+                        )
+                        Log.d(TAG, "provideGlance: fetched & cached for $dateString")
+                    }
+                    response
+                } catch (e: Exception) {
+                    Log.e(TAG, "provideGlance: fetch failed", e)
+                    // 3. 网络也失败 → 尝试用最近一条缓存兜底
+                    db.lunarDateDao().getLast()?.toResponse()
+                }
+            }
+
+            // 预加载自定义图片 Bitmap（IO 线程）
+            customBitmap = withContext(Dispatchers.IO) {
+                loadCustomImage(context)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "provideGlance: unexpected error, showing degraded UI", e)
         }
 
         provideContent {

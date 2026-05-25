@@ -6,7 +6,7 @@ import androidx.room.Entity
 import androidx.room.PrimaryKey
 
 @Entity
-data class CHNDateEnity(
+data class CHNDateEntity(
     @PrimaryKey(autoGenerate = true) val uid: Int?,
     @ColumnInfo(name = "year") val year: String?,
     @ColumnInfo(name = "lunarDate") val lunarDate: String?,
@@ -19,8 +19,8 @@ data class CHNDateEnity(
     @ColumnInfo(name = "ji") val ji: String?,
 ){
     companion object {
-        fun covert(chnDate: CHNDate) : CHNDateEnity{
-            return CHNDateEnity(
+        fun covert(chnDate: CHNDate) : CHNDateEntity{
+            return CHNDateEntity(
                 uid = null,
                 year = chnDate.year,
                 lunarDate = chnDate.lunarDate,
@@ -34,8 +34,8 @@ data class CHNDateEnity(
             )
         }
 
-        fun covertForTest(chnDate: CHNDate) : CHNDateEnity{
-            return CHNDateEnity(
+        fun covertForTest(chnDate: CHNDate) : CHNDateEntity{
+            return CHNDateEntity(
                 uid = 1,
                 year = chnDate.year,
                 lunarDate = chnDate.lunarDate,

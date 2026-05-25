@@ -18,7 +18,7 @@ import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import kotlinx.coroutines.launch
 import lins.applications.appwidget.MyAppWidget
-import lins.applications.appwidget.woker.SyncDateWorker
+import lins.applications.appwidget.worker.SyncDateWorker
 import lins.applications.mychinesecalender.ui.content.MainContent
 import lins.applications.mychinesecalender.ui.theme.MyChineseCalenderTheme
 

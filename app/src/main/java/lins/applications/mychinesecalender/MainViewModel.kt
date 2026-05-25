@@ -16,7 +16,7 @@ import lins.applications.appwidget.data.ChineseCalenderRepository
 import lins.applications.appwidget.data.HkoRepository
 import lins.applications.appwidget.database.AppDataBase
 import lins.applications.appwidget.model.CHNDate
-import lins.applications.appwidget.model.CHNDateEnity
+import lins.applications.appwidget.model.CHNDateEntity
 import lins.applications.appwidget.model.LunarDateEntity
 import lins.applications.appwidget.model.LunarDateResponse
 import java.time.LocalDate
@@ -87,7 +87,7 @@ class MainViewModel() : ViewModel() {
             )
             val db = AppDataBase.getInstance(applicationContext)
 
-            db.chnDateDao().insertDate(CHNDateEnity.covert(result))
+            db.chnDateDao().insertDate(CHNDateEntity.covert(result))
 
             _lunarDate.value = result
             after()

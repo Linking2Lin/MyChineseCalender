@@ -4,29 +4,29 @@ import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
-import lins.applications.appwidget.model.CHNDateEnity
+import lins.applications.appwidget.model.CHNDateEntity
 
 @Dao
 interface CHNDateDao {
-    @Query("SELECT * FROM chndateenity")
-    fun getAll(): List<CHNDateEnity>
+    @Query("SELECT * FROM chndateentity")
+    fun getAll(): List<CHNDateEntity>
 
-    @Query("SELECT * FROM chndateenity WHERE uid = :id")
-    fun getById(id: Int): CHNDateEnity?
+    @Query("SELECT * FROM chndateentity WHERE uid = :id")
+    fun getById(id: Int): CHNDateEntity?
 
     @Delete
-    fun delete(user: CHNDateEnity)
+    fun delete(user: CHNDateEntity)
 
-    @Query("DELETE FROM chndateenity WHERE uid = :id")
+    @Query("DELETE FROM chndateentity WHERE uid = :id")
     fun deleteById(id: Int)
 
 //    @Insert
-//    fun insertAll(vararg users: CHNDateEnity)
+//    fun insertAll(vararg users: CHNDateEntity)
 
     @Insert
-    fun insertDate(user: CHNDateEnity)
+    fun insertDate(user: CHNDateEntity)
 
-    @Query("SELECT * FROM chndateenity order by uid desc limit 1")
-    fun getLast() : CHNDateEnity
+    @Query("SELECT * FROM chndateentity order by uid desc limit 1")
+    fun getLast() : CHNDateEntity
 
 }
