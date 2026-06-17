@@ -26,3 +26,4 @@ rootProject.name = "MyChineseCalender"
 include(":app")
 include(":Appwidget")
 include(":Module_Base")
+include(":Module_Poem")

@@ -51,6 +51,7 @@ dependencies {
     implementation(libs.glance)
 
     implementation(project(":Module_Base"))
+    implementation(project(":Module_Poem"))
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

@@ -19,6 +19,8 @@ import lins.libs.module_base.model.CHNDate
 import lins.libs.module_base.model.CHNDateEntity
 import lins.libs.module_base.model.LunarDateEntity
 import lins.libs.module_base.model.LunarDateResponse
+import lins.libs.module_poem.model.PoemResponse
+import lins.libs.module_poem.repository.PoemRepository
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Calendar
@@ -27,6 +29,19 @@ class MainViewModel() : ViewModel() {
 
     private val _lunarDate : MutableState<CHNDate> =  mutableStateOf(CHNDate())
     val lunarDate: State<CHNDate> = _lunarDate
+
+    private val _poem = MutableStateFlow<PoemResponse?>(null)
+    val poem: StateFlow<PoemResponse?> = _poem.asStateFlow()
+
+    fun fetchPoem(context: Context) {
+        viewModelScope.launch {
+            val repo = PoemRepository(context.applicationContext)
+            val result = repo.fetchPoem()
+            if (result != null) {
+                _poem.value = result
+            }
+        }
+    }
 
     private val repository = HkoRepository()
 

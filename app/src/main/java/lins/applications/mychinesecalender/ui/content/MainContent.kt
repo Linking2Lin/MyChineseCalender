@@ -58,6 +58,9 @@ import java.io.FileOutputStream
 import lins.libs.module_base.model.CHNDate
 import lins.applications.mychinesecalender.MainViewModel
 import lins.applications.mychinesecalender.ui.theme.MyChineseCalenderTheme
+import androidx.compose.foundation.clickable
+import androidx.compose.runtime.collectAsState
+import lins.libs.module_poem.model.PoemResponse
 
 /** Widget 自定义图片的最大边长（像素），超过会等比缩放 */
 private const val MAX_IMAGE_SIZE = 512
@@ -68,6 +71,8 @@ fun MainContent(
     modifier: Modifier = Modifier
 ) {
     val data = viewModel.lunarDate.value
+    val poemState = viewModel.poem.collectAsState()
+    val poem = poemState.value
     val context = LocalContext.current
 
     // 用 state 控制是否需要弹出选择器，避免 recomposition 重复弹出
@@ -92,7 +97,11 @@ fun MainContent(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        MainContentStateless(data = data)
+        MainContentStateless(
+            data = data,
+            poem = poem,
+            onRefreshPoem = { viewModel.fetchPoem(context) }
+        )
 
         FloatingActionButton(
             onClick = {
@@ -199,6 +208,8 @@ private fun saveImageToInternalStorage(context: Context, uri: Uri) {
 @Composable
 fun MainContentStateless(
     data: CHNDate,
+    poem: PoemResponse?,
+    onRefreshPoem: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -210,6 +221,9 @@ fun MainContentStateless(
     ) {
         // 主日期卡片
         MainDateCard(data = data)
+
+        // 诗词卡片
+        PoemCard(poem = poem, onRefresh = onRefreshPoem)
 
         // 详细历法卡片
         DetailInfoCard(data = data)
@@ -378,6 +392,65 @@ fun YiJiCard(
     }
 }
 
+@Composable
+fun PoemCard(
+    poem: PoemResponse?,
+    onRefresh: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable { onRefresh() },
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+            contentColor = MaterialTheme.colorScheme.onTertiaryContainer
+        ),
+        shape = MaterialTheme.shapes.large
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            val poemData = poem?.data
+            if (poemData != null) {
+                Text(
+                    text = poemData.content,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                val origin = poemData.origin
+                val sourceText = if (origin != null) {
+                    "—— [${origin.dynasty}] ${origin.author} 《${origin.title}》"
+                } else {
+                    ""
+                }
+                if (sourceText.isNotEmpty()) {
+                    Text(
+                        text = sourceText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        textAlign = TextAlign.End,
+                        modifier = Modifier.fillMaxWidth().padding(end = 8.dp)
+                    )
+                }
+            } else {
+                Text(
+                    text = "点击加载今日诗词...",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.6f),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        }
+    }
+}
+
 @Preview(showBackground = true, name = "Light Mode")
 @Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES, name = "Dark Mode")
 @Composable
@@ -385,7 +458,11 @@ fun MainContentPreview() {
     MyChineseCalenderTheme {
         Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
             Box(modifier = Modifier.fillMaxSize()) {
-                MainContentStateless(data = CHNDate.test)
+                MainContentStateless(
+                    data = CHNDate.test,
+                    poem = null,
+                    onRefreshPoem = {}
+                )
                 FloatingActionButton(
                     onClick = {},
                     modifier = Modifier

@@ -22,6 +22,8 @@ room = "2.8.4"
 androidx-glance-preview = "1.1.1"
 work_version = "2.11.2"
 xLog = "1.11.1"
+androidx-datastore = "1.1.1"
+
 
 
 [libraries]
@@ -72,6 +74,8 @@ ktor-serialization-kotlinx-json = { group = "io.ktor", name = "ktor-serializatio
 
 
 androidx-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended", version = "1.7.8" }
+androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "androidx-datastore" }
+
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

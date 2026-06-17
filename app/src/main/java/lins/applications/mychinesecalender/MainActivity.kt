@@ -71,6 +71,7 @@ class MainActivity : ComponentActivity() {
 
         // 修改：传入 ApplicationContext，以支持 ViewModel 优先加载缓存
         viewModel.getTodayLunarInfo(this.applicationContext)
+        viewModel.fetchPoem(this.applicationContext)
     }
 
     private suspend fun update() {
