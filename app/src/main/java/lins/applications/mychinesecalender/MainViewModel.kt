@@ -33,9 +33,20 @@ class MainViewModel() : ViewModel() {
     private val _poem = MutableStateFlow<PoemResponse?>(null)
     val poem: StateFlow<PoemResponse?> = _poem.asStateFlow()
 
+    private var poemRepository: PoemRepository? = null
+    private var fetchPoemJob: kotlinx.coroutines.Job? = null
+
+    private fun getPoemRepository(context: Context): PoemRepository {
+        return poemRepository ?: PoemRepository(context.applicationContext).also {
+            poemRepository = it
+        }
+    }
+
     fun fetchPoem(context: Context) {
-        viewModelScope.launch {
-            val repo = PoemRepository(context.applicationContext)
+        // 取消上一次未完成的请求，避免快速连点导致并发请求
+        fetchPoemJob?.cancel()
+        fetchPoemJob = viewModelScope.launch {
+            val repo = getPoemRepository(context)
             val result = repo.fetchPoem()
             if (result != null) {
                 _poem.value = result

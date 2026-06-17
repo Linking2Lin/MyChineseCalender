@@ -11,10 +11,8 @@ import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.http.isSuccess
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import lins.libs.module_poem.model.PoemResponse
 import lins.libs.module_base.network.KtorClient
@@ -66,25 +64,26 @@ class PoemRepository(private val context: Context) {
         }
     }
 
+    // 注意：此处不需要 withContext(Dispatchers.IO)，因为：
+    // 1. DataStore 的读写是 suspend 函数，内部使用自己的调度器
+    // 2. Ktor 的 client.get 也是 suspend 函数，不需要外部 IO 调度器
     suspend fun fetchPoem(): PoemResponse? {
-        return withContext(Dispatchers.IO) {
-            try {
-                val token = getOrFetchToken()
-                val response = client.get("https://v2.jinrishici.com/sentence") {
-                    if (!token.isNullOrEmpty()) {
-                        header("X-User-Token", token)
-                    }
+        return try {
+            val token = getOrFetchToken()
+            val response = client.get("https://v2.jinrishici.com/sentence") {
+                if (!token.isNullOrEmpty()) {
+                    header("X-User-Token", token)
                 }
-                if (response.status.isSuccess()) {
-                    response.body<PoemResponse>()
-                } else {
-                    Log.e(TAG, "Failed to fetch poem: HTTP ${response.status}")
-                    null
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Exception during fetchPoem", e)
+            }
+            if (response.status.isSuccess()) {
+                response.body<PoemResponse>()
+            } else {
+                Log.e(TAG, "Failed to fetch poem: HTTP ${response.status}")
                 null
             }
+        } catch (e: Exception) {
+            Log.e(TAG, "Exception during fetchPoem", e)
+            null
         }
     }
 }

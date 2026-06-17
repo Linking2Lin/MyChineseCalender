@@ -11,8 +11,8 @@ data class PoemResponse(
 
 @Serializable
 data class PoemData(
-    val id: String,
-    val content: String,
+    val id: String = "",
+    val content: String = "",
     val popularity: Int = 0,
     val origin: PoemOrigin? = null
 )
