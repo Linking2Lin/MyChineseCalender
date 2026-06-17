@@ -1,4 +1,4 @@
-package lins.applications.appwidget.model
+package lins.libs.module_base.model
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable

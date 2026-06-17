@@ -10,8 +10,8 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import lins.applications.appwidget.MyAppWidget
 import lins.applications.appwidget.data.HkoRepository
-import lins.applications.appwidget.database.AppDataBase
-import lins.applications.appwidget.model.LunarDateEntity
+import lins.libs.module_base.database.AppDataBase
+import lins.libs.module_base.model.LunarDateEntity
 import lins.libs.module_base.Logger
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter

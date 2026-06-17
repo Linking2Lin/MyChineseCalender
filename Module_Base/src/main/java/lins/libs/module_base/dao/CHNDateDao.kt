@@ -1,10 +1,10 @@
-package lins.applications.appwidget.dao
+package lins.libs.module_base.dao
 
 import androidx.room.Dao
 import androidx.room.Delete
 import androidx.room.Insert
 import androidx.room.Query
-import lins.applications.appwidget.model.CHNDateEntity
+import lins.libs.module_base.model.CHNDateEntity
 
 @Dao
 interface CHNDateDao {
@@ -28,5 +28,4 @@ interface CHNDateDao {
 
     @Query("SELECT * FROM chndateentity order by uid desc limit 1")
     fun getLast() : CHNDateEntity
-
 }

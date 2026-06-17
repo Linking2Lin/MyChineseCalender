@@ -55,7 +55,7 @@ import lins.applications.appwidget.WIDGET_CUSTOM_IMAGE_FILE
 import lins.applications.appwidget.getCircleBitmap
 import java.io.File
 import java.io.FileOutputStream
-import lins.applications.appwidget.model.CHNDate
+import lins.libs.module_base.model.CHNDate
 import lins.applications.mychinesecalender.MainViewModel
 import lins.applications.mychinesecalender.ui.theme.MyChineseCalenderTheme
 

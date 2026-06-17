@@ -1,10 +1,10 @@
-package lins.applications.appwidget.dao
+package lins.libs.module_base.dao
 
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
-import lins.applications.appwidget.model.LunarDateEntity
+import lins.libs.module_base.model.LunarDateEntity
 
 @Dao
 interface LunarDateDao {

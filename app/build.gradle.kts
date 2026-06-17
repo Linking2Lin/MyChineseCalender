@@ -1,8 +1,6 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.google.devtools.ksp)
-    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -29,8 +27,8 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
 
     buildFeatures {
@@ -52,11 +50,7 @@ dependencies {
     implementation(project(":Appwidget"))
     implementation(libs.glance)
 
-    implementation(libs.room.runtime)
-    implementation(libs.room.ktx)
     implementation(project(":Module_Base"))
-    ksp(libs.room.compiler)
-
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
@@ -67,13 +61,4 @@ dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
 
     implementation(libs.androidx.work.runtime.ktx)
-
-    // 引入 Ktor 网络请求框架
-    implementation(libs.ktor.client.core)
-    implementation(libs.ktor.client.android)
-    implementation(libs.ktor.client.content.negotiation)
-    implementation(libs.ktor.serialization.kotlinx.json)
-
-    // 引入 Kotlinx JSON 序列化库
-    implementation(libs.kotlinx.serialization.json)
 }

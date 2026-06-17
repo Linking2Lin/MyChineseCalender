@@ -49,9 +49,9 @@ import kotlinx.coroutines.Dispatchers
 import lins.applications.appwidget.action.RefreshAction
 import kotlinx.coroutines.withContext
 import lins.applications.appwidget.data.HkoRepository
-import lins.applications.appwidget.database.AppDataBase
-import lins.applications.appwidget.model.LunarDateEntity
-import lins.applications.appwidget.model.LunarDateResponse
+import lins.libs.module_base.database.AppDataBase
+import lins.libs.module_base.model.LunarDateEntity
+import lins.libs.module_base.model.LunarDateResponse
 import lins.libs.module_base.Logger
 import java.io.File
 import java.time.LocalDate

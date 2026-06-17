@@ -6,7 +6,8 @@ import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.http.isSuccess
-import lins.applications.appwidget.model.LunarDateResponse
+import lins.libs.module_base.model.LunarDateResponse
+import lins.libs.module_base.network.KtorClient
 
 /**
  * @Author LinXuXu

@@ -1,6 +1,5 @@
-package lins.applications.appwidget.model
+package lins.libs.module_base.model
 
-import androidx.core.util.TimeUtils
 import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey

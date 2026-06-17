@@ -7,8 +7,9 @@ import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import lins.applications.appwidget.model.CHNDate
+import lins.libs.module_base.model.CHNDate
 import lins.libs.module_base.Logger
+import lins.libs.module_base.network.KtorClient
 
 class ChineseCalenderRepository {
     private val TAG = "ChineseCalenderReposito"
@@ -64,4 +65,3 @@ class ChineseCalenderRepository {
         }
     }
 }
-

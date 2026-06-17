@@ -1,4 +1,4 @@
-package lins.applications.appwidget.model
+package lins.libs.module_base.model
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity

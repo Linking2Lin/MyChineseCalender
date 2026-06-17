@@ -1,12 +1,12 @@
 plugins {
     alias(libs.plugins.android.library)
+    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.google.devtools.ksp)
 }
 
 android {
     namespace = "lins.libs.module_base"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 24
@@ -39,14 +39,25 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 
+    // 日志框架（api 暴露给上层模块）
     api(libs.com.elvishew.xlog)
 
-    // 引入 Ktor 网络请求框架
-    implementation(libs.ktor.client.core)
-    implementation(libs.ktor.client.android)
-    implementation(libs.ktor.client.content.negotiation)
-    implementation(libs.ktor.serialization.kotlinx.json)
+    // Ktor 网络请求框架（api 暴露给上层模块）
+    api(libs.ktor.client.core)
+    api(libs.ktor.client.android)
+    api(libs.ktor.client.content.negotiation)
+    api(libs.ktor.serialization.kotlinx.json)
+    api(libs.ktor.client.logging)
+    api(libs.slf4j.android)
 
-    // 引入 Kotlinx JSON 序列化库
-    implementation(libs.kotlinx.serialization.json)
+    // Room 数据库（api 暴露给上层模块）
+    api(libs.room.runtime)
+    api(libs.room.ktx)
+    ksp(libs.room.compiler)
+
+    // Kotlinx JSON 序列化库（api 暴露给上层模块）
+    api(libs.kotlinx.serialization.json)
+
+    // Coroutines
+    api(libs.kotlinx.coroutines.android)
 }

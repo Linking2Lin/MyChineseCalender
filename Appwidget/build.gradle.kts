@@ -1,8 +1,6 @@
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.google.devtools.ksp)
 }
 
 android {
@@ -26,8 +24,8 @@ android {
         }
     }
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
     }
 
 }
@@ -42,38 +40,16 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 
+    // Glance Widget
     implementation(libs.glance)
     implementation(libs.glance.material3)
-    api(libs.kotlinx.serialization.json)
-    // ktor
-    implementation(libs.ktor.client.core)
-//    implementation(libs.kotlinx.coroutines.core)
-    implementation(libs.ktor.client.okhttp)
-    implementation(libs.ktor.client.cio)
-    implementation(libs.ktor.client.android)
-    implementation(libs.ktor.client.logging)
-    implementation(libs.ktor.server.default.headers)
-
-    // coroutines
-    implementation(libs.kotlinx.coroutines.android)
-    implementation(libs.slf4j.android)
-
-    implementation(libs.room.runtime)
-    implementation(libs.room.ktx)
-    ksp(libs.room.compiler)
 
     debugImplementation(libs.androidx.glance.preview)
     debugImplementation(libs.androidx.glance.appwidget.preview)
 
+    // WorkManager
     implementation(libs.androidx.work.runtime.ktx)
 
-    // 引入 Ktor 网络请求框架
-    implementation(libs.ktor.client.core)
-    implementation(libs.ktor.client.android)
-    implementation(libs.ktor.client.content.negotiation)
-    implementation(libs.ktor.serialization.kotlinx.json)
-
-    // 引入 Kotlinx JSON 序列化库
-    implementation(libs.kotlinx.serialization.json)
-
+    // Compose icons
+    implementation(libs.androidx.material.icons.extended)
 }

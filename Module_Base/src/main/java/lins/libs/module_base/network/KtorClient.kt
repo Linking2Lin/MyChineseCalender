@@ -1,4 +1,4 @@
-package lins.applications.appwidget.data
+package lins.libs.module_base.network
 
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.android.Android
