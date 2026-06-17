@@ -13,6 +13,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MyChineseCalender"
         android:name="lins.libs.module_base.MyApplication"
+        android:enableOnBackInvokedCallback="true"
         >
         <activity
             android:name=".MainActivity"

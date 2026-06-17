@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "lins.libs.module_base"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         minSdk = 24
