@@ -491,7 +491,7 @@ fun PreMediumWidgetContent() {
 }
 
 @OptIn(ExperimentalGlancePreviewApi::class)
-@Preview(widthDp = 410, heightDp = 100)
+@Preview(widthDp = 150, heightDp = 100)
 @Composable
 fun PreSmallWidgetContent() {
     GlanceTheme {
