@@ -465,3 +465,39 @@ fun PreWidgetContent() {
         )
     }
 }
+
+@OptIn(ExperimentalGlancePreviewApi::class)
+@Preview(widthDp = 410, heightDp = 100)
+@Composable
+fun PreMaxWidgetContent() {
+    GlanceTheme {
+        MaxWidgetLayout(
+            date = LunarDateResponse(lunarYear = "丙午年，马", lunarDate = "二月初九"),
+            customBitmap = null
+        )
+    }
+}
+
+@OptIn(ExperimentalGlancePreviewApi::class)
+@Preview(widthDp = 410, heightDp = 100)
+@Composable
+fun PreMediumWidgetContent() {
+    GlanceTheme {
+        MediumWidgetLayout(
+            date = LunarDateResponse(lunarYear = "丙午年，马", lunarDate = "二月初九"),
+            customBitmap = null
+        )
+    }
+}
+
+@OptIn(ExperimentalGlancePreviewApi::class)
+@Preview(widthDp = 410, heightDp = 100)
+@Composable
+fun PreSmallWidgetContent() {
+    GlanceTheme {
+        SmallWidgetLayout(
+            date = LunarDateResponse(lunarYear = "丙午年，马", lunarDate = "二月初九"),
+            //customBitmap = null
+        )
+    }
+}
