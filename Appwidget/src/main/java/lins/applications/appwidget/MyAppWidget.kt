@@ -8,7 +8,6 @@ import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.Rect
-import lins.libs.module_base.Constants
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.DpSize
@@ -20,8 +19,10 @@ import androidx.glance.GlanceTheme
 import androidx.glance.Image
 import androidx.glance.ImageProvider
 import androidx.glance.LocalSize
+import androidx.glance.action.clickable
 import androidx.glance.appwidget.GlanceAppWidget
 import androidx.glance.appwidget.SizeMode
+import androidx.glance.appwidget.action.actionRunCallback
 import androidx.glance.appwidget.cornerRadius
 import androidx.glance.appwidget.provideContent
 import androidx.glance.background
@@ -31,26 +32,25 @@ import androidx.glance.layout.Column
 import androidx.glance.layout.ContentScale
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
-import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxSize
+import androidx.glance.layout.fillMaxWidth
+import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.layout.size
-import androidx.glance.layout.wrapContentWidth
 import androidx.glance.layout.width
-import androidx.glance.layout.height
+import androidx.glance.layout.wrapContentWidth
 import androidx.glance.preview.ExperimentalGlancePreviewApi
 import androidx.glance.preview.Preview
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
-import androidx.glance.action.clickable
-import androidx.glance.appwidget.action.actionRunCallback
 import kotlinx.coroutines.Dispatchers
-import lins.applications.appwidget.action.RefreshAction
 import kotlinx.coroutines.withContext
+import lins.applications.appwidget.action.RefreshAction
+import lins.libs.module_base.Constants
+import lins.libs.module_base.Logger
 import lins.libs.module_base.database.AppDataBase
 import lins.libs.module_base.model.LunarDateResponse
-import lins.libs.module_base.Logger
 import java.io.File
 import java.time.LocalDate
 
@@ -93,7 +93,7 @@ class MyAppWidget : GlanceAppWidget() {
     companion object {
         val SMALL_SQUARE = DpSize(50.dp, 50.dp)
         val HORIZONTAL_RECTANGLE = DpSize(100.dp, 50.dp)
-        val BIG_SQUARE = DpSize(400.dp, 400.dp)
+        val BIG_SQUARE = DpSize(250.dp, 50.dp)
 
         /**
          * 从内部存储加载用户自定义的 widget 头像图片。
@@ -111,7 +111,11 @@ class MyAppWidget : GlanceAppWidget() {
 
                     val maxSize = 256 // Widget 图片最大像素
                     var inSampleSize = 1
-                    while (maxOf(options.outWidth, options.outHeight) / inSampleSize > maxSize * 2) {
+                    while (maxOf(
+                            options.outWidth,
+                            options.outHeight
+                        ) / inSampleSize > maxSize * 2
+                    ) {
                         inSampleSize *= 2
                     }
 
@@ -179,10 +183,12 @@ fun WidgetContent(date: LunarDateResponse?, customBitmap: Bitmap?) {
     }
 
     when {
-        size.width >= MyAppWidget.BIG_SQUARE.width
-                && size.height >= MyAppWidget.BIG_SQUARE.height -> {
+        size.width >= MyAppWidget.BIG_SQUARE.width -> {
             // 这里为了简单，大尺寸也复用中等尺寸的样式，因为 HkoRepository 只返回了 lunarYear 和 lunarDate
+            // MaxWidgetLayout(date = date, customBitmap = customBitmap)
+            // 先暂时使用中等，大布局需要确认最终排版
             MediumWidgetLayout(date = date, customBitmap = customBitmap)
+
         }
 
         size.width >= MyAppWidget.HORIZONTAL_RECTANGLE.width -> {
@@ -223,7 +229,7 @@ fun SmallWidgetLayout(date: LunarDateResponse, modifier: GlanceModifier = Glance
 }
 
 // ────────────────────────────────────────────────────────────────
-//  小组件 · 中等尺寸 / 大尺寸 — 统一为要求的双行文字布局
+//  小组件 · 中等尺寸
 // ────────────────────────────────────────────────────────────────
 
 @Composable
@@ -312,17 +318,149 @@ fun MediumWidgetLayout(
     }
 }
 
+
+// ────────────────────────────────────────────────────────────────
+//  小组件 · 大尺寸
+// ────────────────────────────────────────────────────────────────
+
+@Composable
+fun MaxWidgetLayout(
+    date: LunarDateResponse,
+    customBitmap: Bitmap?,
+    modifier: GlanceModifier = GlanceModifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxSize()
+            .background(Color.Transparent)
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalAlignment = Alignment.Start,
+    ) {
+
+        //包裹内容并绘制胶囊背景
+        Row(
+            modifier = modifier
+                .fillMaxSize()
+                .cornerRadius(100.dp) // <-- 显式设置圆角以裁剪点击水波纹
+                // GlanceTheme.colors.widgetBackground 本质上通常映射到系统的 Surface Color 或者定义的 Widget Background Color，
+                // 由于 Glance 暂不支持直接传入 Compose Brush 来绘制渐变，
+                // 我们通过一个带有 gradient 渐变的 XML drawable 来实现渐变效果。
+                .background(ImageProvider(R.drawable.widget_gradient_background))
+                .padding(11.dp)
+                .clickable(actionRunCallback<RefreshAction>()),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalAlignment = Alignment.Start,
+        ) {
+            // ── 左侧：圆形头像图片 ──
+            if (customBitmap != null) {
+                Image(
+                    provider = ImageProvider(customBitmap),
+                    contentDescription = "自定义头像",
+                    contentScale = ContentScale.Crop,
+                    modifier = GlanceModifier
+                        .size(66.dp)
+                        .cornerRadius(33.dp), // 双重保险：RemoteViews 级别圆形裁剪，重启缓存恢复后仍生效
+                )
+            } else {
+                Image(
+                    provider = ImageProvider(R.mipmap.ic_launcher_round),
+                    contentDescription = "默认头像",
+                    contentScale = ContentScale.Crop,
+                    modifier = GlanceModifier
+                        .size(66.dp)
+                        .cornerRadius(33.dp),
+                )
+            }
+
+            Spacer(modifier = GlanceModifier.width(10.dp))
+
+            // ── 右侧：日期文字 ──
+            Column(
+                modifier = GlanceModifier.defaultWeight(), // 占用剩余宽度
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalAlignment = Alignment.Start,
+            ) {
+
+                // 第一行：lunarYear 和 夫人神好清
+                Row(
+                    modifier = GlanceModifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = date.lunarDate + "，" +date.lunarYear,
+                        style = TextStyle(
+                            color = GlanceTheme.colors.onSurface,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                        ),
+                        maxLines = 1,
+                    )
+
+                    /*Spacer(modifier = GlanceModifier.defaultWeight())
+
+                    Text(
+                        text = date.lunarDate,
+                        style = TextStyle(
+                            color = GlanceTheme.colors.onSurface,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                        ),
+                        maxLines = 1,
+                    )*/
+                }
+
+                Spacer(modifier = GlanceModifier.height(4.dp))
+
+                // 第二行：
+                Row(
+                    modifier = GlanceModifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "人心好静，而欲牵之",
+                        style = TextStyle(
+                            color = GlanceTheme.colors.onSurface,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                        ),
+                        maxLines = 1,
+                    )
+
+                    /*Spacer(modifier = GlanceModifier.defaultWeight())
+
+                    Text(
+                        text = "而心扰之",
+                        style = TextStyle(
+                            color = GlanceTheme.colors.onSurface,
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                        ),
+                        maxLines = 1,
+                    )*/
+                }
+            }
+
+            Spacer(
+                modifier = GlanceModifier
+                    .width(20.dp)
+                    .height(1.dp)
+            )
+        }
+    }
+}
+
 // ────────────────────────────────────────────────────────────────
 //  Preview
 // ────────────────────────────────────────────────────────────────
 
 @OptIn(ExperimentalGlancePreviewApi::class)
-@Preview(widthDp = 400, heightDp = 100)
+@Preview(widthDp = 410, heightDp = 100)
 @Composable
 fun PreWidgetContent() {
     GlanceTheme {
         WidgetContent(
-            date = LunarDateResponse(lunarYear = "星期五，3月27日", lunarDate = "二月初九"),
+            date = LunarDateResponse(lunarYear = "丙午年，马", lunarDate = "二月初九"),
             customBitmap = null
         )
     }
