@@ -18,7 +18,7 @@ data class CHNDateEntity(
     @ColumnInfo(name = "ji") val ji: String?,
 ){
     companion object {
-        fun covert(chnDate: CHNDate) : CHNDateEntity{
+        fun convert(chnDate: CHNDate) : CHNDateEntity{
             return CHNDateEntity(
                 uid = null,
                 year = chnDate.year,
@@ -33,7 +33,7 @@ data class CHNDateEntity(
             )
         }
 
-        fun covertForTest(chnDate: CHNDate) : CHNDateEntity{
+        fun convertForTest(chnDate: CHNDate) : CHNDateEntity{
             return CHNDateEntity(
                 uid = 1,
                 year = chnDate.year,

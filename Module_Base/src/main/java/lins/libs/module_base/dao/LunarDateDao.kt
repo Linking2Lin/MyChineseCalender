@@ -11,17 +11,17 @@ interface LunarDateDao {
 
     /** 按日期查询缓存 */
     @Query("SELECT * FROM lunar_date WHERE date = :date LIMIT 1")
-    fun getByDate(date: String): LunarDateEntity?
+    suspend fun getByDate(date: String): LunarDateEntity?
 
     /** 获取最新一条缓存 */
     @Query("SELECT * FROM lunar_date ORDER BY date DESC LIMIT 1")
-    fun getLast(): LunarDateEntity?
+    suspend fun getLast(): LunarDateEntity?
 
     /** 插入或覆盖（同一天多次同步时直接替换） */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    fun insertOrReplace(entity: LunarDateEntity)
+    suspend fun insertOrReplace(entity: LunarDateEntity)
 
     /** 清理过期缓存，只保留最近 N 天 */
     @Query("DELETE FROM lunar_date WHERE date NOT IN (SELECT date FROM lunar_date ORDER BY date DESC LIMIT :keepDays)")
-    fun cleanup(keepDays: Int = 7)
+    suspend fun cleanup(keepDays: Int)
 }

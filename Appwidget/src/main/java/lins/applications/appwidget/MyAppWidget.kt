@@ -8,7 +8,7 @@ import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.Rect
-import android.util.Log
+import lins.libs.module_base.Constants
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.DpSize
@@ -48,14 +48,11 @@ import androidx.glance.appwidget.action.actionRunCallback
 import kotlinx.coroutines.Dispatchers
 import lins.applications.appwidget.action.RefreshAction
 import kotlinx.coroutines.withContext
-import lins.applications.appwidget.data.HkoRepository
 import lins.libs.module_base.database.AppDataBase
-import lins.libs.module_base.model.LunarDateEntity
 import lins.libs.module_base.model.LunarDateResponse
 import lins.libs.module_base.Logger
 import java.io.File
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 
 private const val TAG = "MyAppWidget"
 
@@ -65,40 +62,19 @@ const val WIDGET_CUSTOM_IMAGE_FILE = "widget_custom_image.png"
 class MyAppWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-
         var date: LunarDateResponse? = null
         var customBitmap: Bitmap? = null
 
         try {
-            // 优先从数据库缓存读取，缓存未命中时再走网络
+            // 只从数据库缓存读取，网络请求由 WorkManager / DateChangeReceiver 负责
             date = withContext(Dispatchers.IO) {
                 val today = LocalDate.now()
-                val dateString = today.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-
+                val dateString = today.format(Constants.DATE_FORMATTER)
                 val db = AppDataBase.getInstance(context)
 
-                // 1. 尝试读取今天的缓存
-                val cached = db.lunarDateDao().getByDate(dateString)
-                if (cached != null) {
-                    Log.d(TAG, "provideGlance: cache hit for $dateString")
-                    return@withContext cached.toResponse()
-                }
-
-                // 2. 缓存未命中 → 从 HkoRepository 拉取
-                try {
-                    val response = HkoRepository().fetchLunarDate(dateString)
-                    if (response != null) {
-                        db.lunarDateDao().insertOrReplace(
-                            LunarDateEntity.fromResponse(dateString, response)
-                        )
-                        Log.d(TAG, "provideGlance: fetched & cached for $dateString")
-                    }
-                    response
-                } catch (e: Exception) {
-                    Log.e(TAG, "provideGlance: fetch failed", e)
-                    // 3. 网络也失败 → 尝试用最近一条缓存兜底
-                    db.lunarDateDao().getLast()?.toResponse()
-                }
+                // 优先读取今天的缓存，不命中则用最近一条兜底
+                db.lunarDateDao().getByDate(dateString)?.toResponse()
+                    ?: db.lunarDateDao().getLast()?.toResponse()
             }
 
             // 预加载自定义图片 Bitmap（IO 线程）
@@ -106,7 +82,7 @@ class MyAppWidget : GlanceAppWidget() {
                 loadCustomImage(context)
             }
         } catch (e: Exception) {
-            Log.e(TAG, "provideGlance: unexpected error, showing degraded UI", e)
+            Logger.e(TAG, "provideGlance: error loading data", e)
         }
 
         provideContent {
@@ -128,10 +104,23 @@ class MyAppWidget : GlanceAppWidget() {
             return try {
                 val file = File(context.filesDir, WIDGET_CUSTOM_IMAGE_FILE)
                 if (file.exists()) {
-                    BitmapFactory.decodeFile(file.absolutePath)
+                    // 限制加载尺寸，避免大图占用过多内存
+                    val options = BitmapFactory.Options()
+                    options.inJustDecodeBounds = true
+                    BitmapFactory.decodeFile(file.absolutePath, options)
+
+                    val maxSize = 256 // Widget 图片最大像素
+                    var inSampleSize = 1
+                    while (maxOf(options.outWidth, options.outHeight) / inSampleSize > maxSize * 2) {
+                        inSampleSize *= 2
+                    }
+
+                    val decodeOptions = BitmapFactory.Options()
+                    decodeOptions.inSampleSize = inSampleSize
+                    BitmapFactory.decodeFile(file.absolutePath, decodeOptions)
                 } else null
             } catch (e: Exception) {
-                Log.e(TAG, "loadCustomImage failed", e)
+                Logger.e(TAG, "loadCustomImage failed", e)
                 null
             }
         }
@@ -171,8 +160,6 @@ fun getCircleBitmap(bitmap: Bitmap): Bitmap {
 @Composable
 fun WidgetContent(date: LunarDateResponse?, customBitmap: Bitmap?) {
     val size = LocalSize.current
-    // XLog is not initialized in Preview, so we use standard Log.d instead.
-    Log.d(TAG, "WidgetContent updating for size: $size")
 
     if (date == null) {
         Column(

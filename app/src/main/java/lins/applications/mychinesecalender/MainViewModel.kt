@@ -1,12 +1,10 @@
 package lins.applications.mychinesecalender
 
 import android.content.Context
-import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.State
-import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,6 +12,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import lins.applications.appwidget.data.ChineseCalenderRepository
 import lins.applications.appwidget.data.HkoRepository
+import lins.libs.module_base.Constants
 import lins.libs.module_base.database.AppDataBase
 import lins.libs.module_base.model.CHNDate
 import lins.libs.module_base.model.CHNDateEntity
@@ -22,19 +21,19 @@ import lins.libs.module_base.model.LunarDateResponse
 import lins.libs.module_poem.model.PoemResponse
 import lins.libs.module_poem.repository.PoemRepository
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import java.util.Calendar
 
 class MainViewModel() : ViewModel() {
 
-    private val _lunarDate : MutableState<CHNDate> =  mutableStateOf(CHNDate())
-    val lunarDate: State<CHNDate> = _lunarDate
+    // 统一使用 StateFlow（线程安全，可从任意线程更新）
+    private val _lunarDate = MutableStateFlow(CHNDate())
+    val lunarDate: StateFlow<CHNDate> = _lunarDate.asStateFlow()
 
     private val _poem = MutableStateFlow<PoemResponse?>(null)
     val poem: StateFlow<PoemResponse?> = _poem.asStateFlow()
 
     private var poemRepository: PoemRepository? = null
-    private var fetchPoemJob: kotlinx.coroutines.Job? = null
+    private var fetchPoemJob: Job? = null
 
     private fun getPoemRepository(context: Context): PoemRepository {
         return poemRepository ?: PoemRepository(context.applicationContext).also {
@@ -54,8 +53,6 @@ class MainViewModel() : ViewModel() {
         }
     }
 
-    private val repository = HkoRepository()
-
     // 内部可变的 StateFlow，用于保存请求结果
     private val _lunarData = MutableStateFlow<LunarDateResponse?>(null)
     // 暴露给 UI 层的不可变 StateFlow
@@ -63,13 +60,12 @@ class MainViewModel() : ViewModel() {
 
     /**
      * 获取今天的农历信息
-     * 优化：优先从数据库缓存读取，实现“秒开”，然后再从网络拉取最新数据刷新并覆盖缓存。
+     * 优化：优先从数据库缓存读取，实现"秒开"，然后再从网络拉取最新数据刷新并覆盖缓存。
      */
     fun getTodayLunarInfo(context: Context) {
         viewModelScope.launch {
             val today = LocalDate.now()
-            val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-            val dateString = today.format(formatter)
+            val dateString = today.format(Constants.DATE_FORMATTER)
 
             val db = AppDataBase.getInstance(context)
 
@@ -83,7 +79,7 @@ class MainViewModel() : ViewModel() {
 
             // 2. 异步发起网络请求获取最新数据 (在 IO 线程)
             val result = withContext(Dispatchers.IO) {
-                repository.fetchLunarDate(dateString)
+                HkoRepository.fetchLunarDate(dateString)
             }
 
             // 3. 网络结果如果成功，则更新 UI，同时刷新本地数据库
@@ -113,8 +109,9 @@ class MainViewModel() : ViewModel() {
             )
             val db = AppDataBase.getInstance(applicationContext)
 
-            db.chnDateDao().insertDate(CHNDateEntity.covert(result))
+            db.chnDateDao().insertDate(CHNDateEntity.convert(result))
 
+            // 使用 StateFlow 更新，线程安全
             _lunarDate.value = result
             after()
         }

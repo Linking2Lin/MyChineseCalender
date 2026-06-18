@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -13,17 +14,14 @@ import androidx.glance.appwidget.GlanceAppWidgetManager
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.work.ExistingPeriodicWorkPolicy
-import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkManager
 import kotlinx.coroutines.launch
 import lins.applications.appwidget.MyAppWidget
-import lins.applications.appwidget.worker.SyncDateWorker
 import lins.applications.mychinesecalender.ui.content.MainContent
 import lins.applications.mychinesecalender.ui.theme.MyChineseCalenderTheme
 
 class MainActivity : ComponentActivity() {
-    private val viewModel by lazy { MainViewModel() }
+    // 通过 viewModels() 委托创建，配置变更时自动保留
+    private val viewModel: MainViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,19 +42,6 @@ class MainActivity : ComponentActivity() {
                 //update()
             }
         }
-
-        // ── WorkManager 兜底：每 6 小时同步一次 ──
-        val updateDateRequest = PeriodicWorkRequestBuilder<SyncDateWorker>(
-            repeatInterval = 6,
-            repeatIntervalTimeUnit = java.util.concurrent.TimeUnit.HOURS,
-        ).build()
-
-        // 使用 enqueueUniquePeriodicWork 避免重复注册
-        WorkManager.getInstance(this).enqueueUniquePeriodicWork(
-            "sync_lunar_date",
-            ExistingPeriodicWorkPolicy.KEEP,
-            updateDateRequest
-        )
 
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -84,10 +69,6 @@ class MainActivity : ComponentActivity() {
                 it
             )
         }
-    }
-
-    override fun onResume() {
-        super.onResume()
     }
 
     companion object {

@@ -6,14 +6,10 @@ import androidx.glance.GlanceId
 import androidx.glance.action.ActionParameters
 import androidx.glance.appwidget.action.ActionCallback
 import lins.applications.appwidget.MyAppWidget
-import lins.applications.appwidget.data.HkoRepository
-import lins.libs.module_base.database.AppDataBase
-import lins.libs.module_base.model.LunarDateEntity
+import lins.applications.appwidget.helper.WidgetDataSyncHelper
 import lins.libs.module_base.Logger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
 import java.util.concurrent.atomic.AtomicBoolean
 
 private const val TAG = "RefreshAction"
@@ -21,10 +17,9 @@ private const val TAG = "RefreshAction"
 /**
  * 点击 Widget 时触发的刷新动作：
  * 1. 防连点：正在请求时忽略后续点击
- * 2. 从 HkoRepository 拉取最新农历数据
- * 3. 写入数据库缓存
- * 4. 更新 Widget UI
- * 5. 弹出 Toast 提示结果
+ * 2. 使用 WidgetDataSyncHelper 拉取并缓存数据
+ * 3. 更新当前 Widget UI
+ * 4. 弹出 Toast 提示结果
  */
 class RefreshAction : ActionCallback {
 
@@ -50,31 +45,9 @@ class RefreshAction : ActionCallback {
         Logger.d(TAG, "onAction: refreshing widget $glanceId")
 
         try {
-            val today = LocalDate.now()
-            val dateString = today.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+            val success = WidgetDataSyncHelper.fetchAndCacheLunarDate(context) != null
 
-            val success = withContext(Dispatchers.IO) {
-                try {
-                    val response = HkoRepository().fetchLunarDate(dateString)
-                    if (response != null) {
-                        val db = AppDataBase.getInstance(context)
-
-                        db.lunarDateDao().insertOrReplace(
-                            LunarDateEntity.fromResponse(dateString, response)
-                        )
-                        Logger.d(TAG, "onAction: fetched & saved: $response")
-                        true
-                    } else {
-                        Logger.d(TAG, "onAction: HKO returned null")
-                        false
-                    }
-                } catch (e: Exception) {
-                    Logger.d(TAG, "onAction: refresh failed: ${e.message}")
-                    false
-                }
-            }
-
-            // 更新 Widget
+            // 更新当前 Widget
             MyAppWidget().update(context, glanceId)
 
             // 弹 Toast
@@ -83,7 +56,6 @@ class RefreshAction : ActionCallback {
                 Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
             }
         } finally {
-            // 无论成功失败都释放锁
             isRefreshing.set(false)
         }
     }

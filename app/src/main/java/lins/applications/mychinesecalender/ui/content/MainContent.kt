@@ -1,14 +1,10 @@
 package lins.applications.mychinesecalender.ui.content
 
-import android.content.Context
 import android.content.res.Configuration
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.net.Uri
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -33,6 +29,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,34 +43,19 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.glance.appwidget.GlanceAppWidgetManager
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import lins.applications.appwidget.MyAppWidget
-import lins.applications.appwidget.WIDGET_CUSTOM_IMAGE_FILE
-import lins.applications.appwidget.getCircleBitmap
-import java.io.File
-import java.io.FileOutputStream
 import lins.libs.module_base.model.CHNDate
 import lins.applications.mychinesecalender.MainViewModel
 import lins.applications.mychinesecalender.ui.theme.MyChineseCalenderTheme
-import androidx.compose.foundation.clickable
-import androidx.compose.runtime.collectAsState
+import lins.applications.mychinesecalender.util.WidgetImageManager
 import lins.libs.module_poem.model.PoemResponse
-
-/** Widget 自定义图片的最大边长（像素），超过会等比缩放 */
-private const val MAX_IMAGE_SIZE = 512
 
 @Composable
 fun MainContent(
     viewModel: MainViewModel,
     modifier: Modifier = Modifier
 ) {
-    val data = viewModel.lunarDate.value
-    val poemState = viewModel.poem.collectAsState()
-    val poem = poemState.value
+    val data by viewModel.lunarDate.collectAsState()
+    val poem by viewModel.poem.collectAsState()
     val context = LocalContext.current
 
     // 用 state 控制是否需要弹出选择器，避免 recomposition 重复弹出
@@ -83,17 +66,19 @@ fun MainContent(
         onResult = { uri ->
             shouldLaunchPicker = false  // 选择器关闭后重置标记
             if (uri != null) {
-                saveImageToInternalStorage(context, uri)
+                WidgetImageManager.saveImageToInternalStorage(context, uri)
             }
         }
     )
 
-    // 只在 shouldLaunchPicker 从 false→true 时才 launch 一次
-    if (shouldLaunchPicker) {
-        shouldLaunchPicker = false
-        photoPickerLauncher.launch(
-            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-        )
+    // 使用 LaunchedEffect 处理副作用，避免在 Composition 期间直接调用 launch
+    LaunchedEffect(shouldLaunchPicker) {
+        if (shouldLaunchPicker) {
+            photoPickerLauncher.launch(
+                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+            )
+            shouldLaunchPicker = false
+        }
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -112,95 +97,6 @@ fun MainContent(
                 .padding(16.dp)
         ) {
             Icon(imageVector = Icons.Default.Image, contentDescription = "自定义组件图片")
-        }
-    }
-}
-
-/**
- * 将选中的图片解码、缩放后保存到内部存储，然后刷新 Widget。
- *
- * 修复：
- * - 使用 BitmapFactory 解码而非直接 copyTo，兼容 HEIF / WEBP / PNG 等各种格式
- * - 先计算 inSampleSize 降采样，避免大图 OOM
- * - 压缩为 JPEG 存储，确保 Widget 能读取
- * - 完成后弹出 Toast 提示
- */
-private fun saveImageToInternalStorage(context: Context, uri: Uri) {
-    CoroutineScope(Dispatchers.IO).launch {
-        try {
-            // 1. 获取图片原始尺寸（不加载到内存）
-            val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            context.contentResolver.openInputStream(uri)?.use { stream ->
-                BitmapFactory.decodeStream(stream, null, options)
-            }
-            val origWidth = options.outWidth
-            val origHeight = options.outHeight
-            if (origWidth <= 0 || origHeight <= 0) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "无法读取该图片，请换一张试试", Toast.LENGTH_SHORT).show()
-                }
-                return@launch
-            }
-
-            // 2. 计算降采样倍数
-            var inSampleSize = 1
-            val maxSide = maxOf(origWidth, origHeight)
-            while (maxSide / inSampleSize > MAX_IMAGE_SIZE * 2) {
-                inSampleSize *= 2
-            }
-
-            // 3. 解码图片
-            val decodeOptions = BitmapFactory.Options().apply {
-                this.inSampleSize = inSampleSize
-            }
-            val bitmap = context.contentResolver.openInputStream(uri)?.use { stream ->
-                BitmapFactory.decodeStream(stream, null, decodeOptions)
-            }
-            if (bitmap == null) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "无法解码该图片，请换一张试试", Toast.LENGTH_SHORT).show()
-                }
-                return@launch
-            }
-
-            // 4. 等比缩放到 MAX_IMAGE_SIZE
-            val scaled = if (maxOf(bitmap.width, bitmap.height) > MAX_IMAGE_SIZE) {
-                val scale = MAX_IMAGE_SIZE.toFloat() / maxOf(bitmap.width, bitmap.height)
-                val newW = (bitmap.width * scale).toInt()
-                val newH = (bitmap.height * scale).toInt()
-                Bitmap.createScaledBitmap(bitmap, newW, newH, true).also {
-                    if (it !== bitmap) bitmap.recycle()
-                }
-            } else {
-                bitmap
-            }
-
-            // 5. 裁剪为圆形后以 PNG 保存（PNG 支持透明通道）
-            val circular = getCircleBitmap(scaled)
-            if (circular !== scaled) scaled.recycle()
-            val file = File(context.filesDir, WIDGET_CUSTOM_IMAGE_FILE)
-            FileOutputStream(file).use { fos ->
-                circular.compress(Bitmap.CompressFormat.PNG, 100, fos)
-            }
-            circular.recycle()
-
-            // 6. 刷新所有 Widget
-            val manager = GlanceAppWidgetManager(context)
-            val widget = MyAppWidget()
-            val glanceIds = manager.getGlanceIds(MyAppWidget::class.java)
-            glanceIds.forEach { glanceId ->
-                widget.update(context, glanceId)
-            }
-
-            // 7. Toast 提示成功
-            withContext(Dispatchers.Main) {
-                Toast.makeText(context, "Widget 图片已更新 ✓", Toast.LENGTH_SHORT).show()
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            withContext(Dispatchers.Main) {
-                Toast.makeText(context, "图片设置失败: ${e.message}", Toast.LENGTH_SHORT).show()
-            }
         }
     }
 }

@@ -8,20 +8,20 @@ import com.elvishew.xlog.printer.AndroidPrinter
 import com.elvishew.xlog.printer.ConsolePrinter
 import com.elvishew.xlog.printer.file.FilePrinter
 
-class MyApplication : Application() {
+open class MyApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
 
         val logConfig = LogConfiguration.Builder()
-            .logLevel(LogLevel.DEBUG)
+            .logLevel(if (BuildConfig.DEBUG) LogLevel.DEBUG else LogLevel.WARN)
 
             .build()
 
         val androidPrinter = AndroidPrinter()
         val consolePrinter = ConsolePrinter()
         val filePrinter = FilePrinter.Builder(
-            this@MyApplication.filesDir.toString()
+            java.io.File(this@MyApplication.filesDir, "logs").absolutePath
         )
             .build()
 

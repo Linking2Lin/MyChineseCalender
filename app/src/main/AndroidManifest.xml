@@ -12,7 +12,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.MyChineseCalender"
-        android:name="lins.libs.module_base.MyApplication"
+        android:name=".App"
         android:enableOnBackInvokedCallback="true"
         >
         <activity

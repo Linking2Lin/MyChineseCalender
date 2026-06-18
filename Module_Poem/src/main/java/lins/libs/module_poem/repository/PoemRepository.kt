@@ -11,6 +11,7 @@ import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.http.isSuccess
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.Serializable
@@ -58,6 +59,8 @@ class PoemRepository(private val context: Context) {
             } else {
                 null
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "Failed to fetch token", e)
             null
@@ -77,10 +80,28 @@ class PoemRepository(private val context: Context) {
             }
             if (response.status.isSuccess()) {
                 response.body<PoemResponse>()
+            } else if (response.status.value == 401 || response.status.value == 403) {
+                // Token 失效，清除缓存并重试一次
+                Log.w(TAG, "Token rejected (HTTP ${response.status}), clearing and retrying")
+                context.dataStore.edit { it.remove(tokenKey) }
+                val newToken = getOrFetchToken()
+                val retryResponse = client.get("https://v2.jinrishici.com/sentence") {
+                    if (!newToken.isNullOrEmpty()) {
+                        header("X-User-Token", newToken)
+                    }
+                }
+                if (retryResponse.status.isSuccess()) {
+                    retryResponse.body<PoemResponse>()
+                } else {
+                    Log.e(TAG, "Retry failed: HTTP ${retryResponse.status}")
+                    null
+                }
             } else {
                 Log.e(TAG, "Failed to fetch poem: HTTP ${response.status}")
                 null
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "Exception during fetchPoem", e)
             null

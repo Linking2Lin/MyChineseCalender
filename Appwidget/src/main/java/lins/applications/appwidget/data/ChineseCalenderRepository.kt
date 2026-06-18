@@ -1,7 +1,6 @@
 package lins.applications.appwidget.data
 
-import android.util.Log
-import com.elvishew.xlog.XLog
+
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.Dispatchers

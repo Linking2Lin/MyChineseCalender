@@ -9,23 +9,20 @@ import lins.libs.module_base.model.CHNDateEntity
 @Dao
 interface CHNDateDao {
     @Query("SELECT * FROM chndateentity")
-    fun getAll(): List<CHNDateEntity>
+    suspend fun getAll(): List<CHNDateEntity>
 
     @Query("SELECT * FROM chndateentity WHERE uid = :id")
-    fun getById(id: Int): CHNDateEntity?
+    suspend fun getById(id: Int): CHNDateEntity?
 
     @Delete
-    fun delete(user: CHNDateEntity)
+    suspend fun delete(user: CHNDateEntity)
 
     @Query("DELETE FROM chndateentity WHERE uid = :id")
-    fun deleteById(id: Int)
-
-//    @Insert
-//    fun insertAll(vararg users: CHNDateEntity)
+    suspend fun deleteById(id: Int)
 
     @Insert
-    fun insertDate(user: CHNDateEntity)
+    suspend fun insertDate(user: CHNDateEntity)
 
     @Query("SELECT * FROM chndateentity order by uid desc limit 1")
-    fun getLast() : CHNDateEntity
+    suspend fun getLast() : CHNDateEntity?
 }

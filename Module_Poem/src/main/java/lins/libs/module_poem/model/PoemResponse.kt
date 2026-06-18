@@ -19,9 +19,9 @@ data class PoemData(
 
 @Serializable
 data class PoemOrigin(
-    val title: String,
-    val dynasty: String,
-    val author: String,
+    val title: String = "",
+    val dynasty: String = "",
+    val author: String = "",
     val content: List<String> = emptyList(),
     val translate: List<String>? = null
 )
