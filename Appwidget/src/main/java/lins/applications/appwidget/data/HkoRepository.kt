@@ -39,7 +39,12 @@ object HkoRepository {
                 return null
             }
 
-            httpResponse.body<LunarDateResponse>()
+            val response = httpResponse.body<LunarDateResponse>()
+            if (response.lunarYear.isBlank() || response.lunarDate.isBlank()) {
+                Logger.e(TAG, "fetchLunarDate returned blank payload for date=$date")
+                return null
+            }
+            response
         } catch (e: Exception) {
             Logger.e(TAG, "fetchLunarDate exception for date=$date", e)
             null

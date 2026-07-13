@@ -42,25 +42,25 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 
-    // 日志框架（api 暴露给上层模块）
-    api(libs.com.elvishew.xlog)
+    // 日志框架（仅 Module_Base 内部使用）
+    implementation(libs.com.elvishew.xlog)
 
-    // Ktor 网络请求框架（api 暴露给上层模块）
+    // Ktor 网络请求框架（上层模块直接使用 KtorClient.client 发请求，需要 api 透传）
     api(libs.ktor.client.core)
     api(libs.ktor.client.android)
     api(libs.ktor.client.content.negotiation)
     api(libs.ktor.serialization.kotlinx.json)
-    api(libs.ktor.client.logging)
-    api(libs.slf4j.android)
+    implementation(libs.ktor.client.logging)
+    implementation(libs.slf4j.android)
 
-    // Room 数据库（api 暴露给上层模块）
+    // Room 数据库（上层模块直接使用 AppDataBase，其父类 RoomDatabase 需要可见）
     api(libs.room.runtime)
     api(libs.room.ktx)
     ksp(libs.room.compiler)
 
-    // Kotlinx JSON 序列化库（api 暴露给上层模块）
+    // Kotlinx JSON 序列化库（上层模块的 data class 使用 @Serializable 注解）
     api(libs.kotlinx.serialization.json)
 
-    // Coroutines
+    // Coroutines（上层模块使用协程调度）
     api(libs.kotlinx.coroutines.android)
 }

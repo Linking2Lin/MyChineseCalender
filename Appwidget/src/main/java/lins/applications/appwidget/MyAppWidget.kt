@@ -56,9 +56,20 @@ import java.time.LocalDate
 
 private const val TAG = "MyAppWidget"
 
-/** 自定义头像文件名（与 MainContent 中保存位置一致） */
+/**
+ * 自定义头像文件名。
+ * 这个文件保存在应用内部存储中，供 widget 读取。
+ */
 const val WIDGET_CUSTOM_IMAGE_FILE = "widget_custom_image.png"
 
+/**
+ * Glance Widget 的主体实现。
+ *
+ * provideGlance 的职责是准备数据，而不是直接写 UI 逻辑：
+ * - 从数据库取农历缓存
+ * - 从内部存储读取自定义头像
+ * - 然后把数据交给 `WidgetContent` 渲染
+ */
 class MyAppWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
@@ -66,18 +77,18 @@ class MyAppWidget : GlanceAppWidget() {
         var customBitmap: Bitmap? = null
 
         try {
-            // 只从数据库缓存读取，网络请求由 WorkManager / DateChangeReceiver 负责
+            // Widget 不主动请求网络，避免每次展示都打网络；网络刷新由 Worker / 广播接收器负责。
             date = withContext(Dispatchers.IO) {
                 val today = LocalDate.now()
                 val dateString = today.format(Constants.DATE_FORMATTER)
                 val db = AppDataBase.getInstance(context)
 
-                // 优先读取今天的缓存，不命中则用最近一条兜底
+                // 优先读取今天的缓存；如果今天没有数据，则回退到最近一条记录，保证 widget 不至于空白。
                 db.lunarDateDao().getByDate(dateString)?.toResponse()
                     ?: db.lunarDateDao().getLast()?.toResponse()
             }
 
-            // 预加载自定义图片 Bitmap（IO 线程）
+            // 自定义头像同样在 IO 线程读取，避免阻塞 widget 线程。
             customBitmap = withContext(Dispatchers.IO) {
                 loadCustomImage(context)
             }
@@ -104,23 +115,22 @@ class MyAppWidget : GlanceAppWidget() {
             return try {
                 val file = File(context.filesDir, WIDGET_CUSTOM_IMAGE_FILE)
                 if (file.exists()) {
-                    // 限制加载尺寸，避免大图占用过多内存
-                    val options = BitmapFactory.Options()
-                    options.inJustDecodeBounds = true
+                    // 先只读取图片边界，避免把大图直接加载到内存。
+                    val options = BitmapFactory.Options().apply {
+                        inJustDecodeBounds = true
+                    }
                     BitmapFactory.decodeFile(file.absolutePath, options)
 
-                    val maxSize = 256 // Widget 图片最大像素
+                    // 根据目标尺寸计算采样值，尽量让解码后图片接近 widget 所需大小。
+                    val maxSize = 256
                     var inSampleSize = 1
-                    while (maxOf(
-                            options.outWidth,
-                            options.outHeight
-                        ) / inSampleSize > maxSize * 2
-                    ) {
+                    while (maxOf(options.outWidth, options.outHeight) / inSampleSize > maxSize * 2) {
                         inSampleSize *= 2
                     }
 
-                    val decodeOptions = BitmapFactory.Options()
-                    decodeOptions.inSampleSize = inSampleSize
+                    val decodeOptions = BitmapFactory.Options().apply {
+                        this.inSampleSize = inSampleSize
+                    }
                     BitmapFactory.decodeFile(file.absolutePath, decodeOptions)
                 } else null
             } catch (e: Exception) {

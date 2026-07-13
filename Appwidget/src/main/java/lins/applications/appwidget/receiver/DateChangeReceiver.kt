@@ -13,8 +13,10 @@ import lins.libs.module_base.Logger
 private const val TAG = "DateChangeReceiver"
 
 /**
- * 辅助触发器：监听系统日期/时区变更，触发 Widget 数据刷新。
- * 主要更新机制为 WorkManager 定时同步。
+ * 系统广播接收器：监听日期切换和时区变化。
+ *
+ * 当系统日期变化或用户切换时区时，widget 也应该尽快同步到新的“今天”。
+ * 这里使用 goAsync() 是因为同步操作会涉及网络/数据库，不能在主线程里直接做。
  */
 class DateChangeReceiver : BroadcastReceiver() {
 

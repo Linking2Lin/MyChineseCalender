@@ -11,29 +11,43 @@ import io.ktor.http.ContentType
 import io.ktor.serialization.kotlinx.json.json
 import kotlinx.serialization.json.Json
 
+/**
+ * Ktor HttpClient 统一配置入口。
+ *
+ * 把客户端放在单例里统一复用，可以避免每次请求都重新创建连接池和插件，
+ * 对于 app 内多处网络请求场景更省资源。
+ */
 object KtorClient {
-    val client = HttpClient(Android){
+    /**
+     * 统一的 JSON 解析配置。
+     *
+     * - `isLenient = true`：容忍部分不严格 JSON
+     * - `ignoreUnknownKeys = true`：接口扩字段时不至于崩溃
+     */
+    private val jsonConfig = Json {
+        isLenient = true
+        ignoreUnknownKeys = true
+    }
+
+    /**
+     * 全局共享的 HTTP 客户端实例。
+     */
+    val client = HttpClient(Android) {
         engine {
-            // 设置网络请求的超时时间，防止在弱网环境下长时间阻塞
-            connectTimeout = 10_000 // 10秒连接超时
-            socketTimeout = 10_000  // 10秒读取超时
+            // 网络超时策略：避免弱网环境下长时间卡住。
+            connectTimeout = 10_000
+            socketTimeout = 10_000
         }
 
         install(Logging) {
+            // 调试模式下输出完整请求/响应体，方便排查网络问题。
             logger = Logger.DEFAULT
             level = if (lins.libs.module_base.BuildConfig.DEBUG) LogLevel.BODY else LogLevel.NONE
         }
 
-        // 安装 ContentNegotiation 插件，这是解析 JSON 的核心
+        // 统一安装 JSON 解析能力，并兼容一些 Content-Type 标注不标准的接口。
         install(ContentNegotiation) {
-            val jsonConfig = Json {
-                prettyPrint = true
-                isLenient = true       // 宽松模式，允许不规范的 JSON（如引号缺失）
-                ignoreUnknownKeys = true // 忽略未知字段，接口新增字段时不会崩溃
-            }
-            // 标准 JSON 响应（application/json）
             json(jsonConfig)
-            // 兼容 HKO 等返回 JSON 内容却误报 text/html Content-Type 的 API
             json(jsonConfig, contentType = ContentType.Text.Html)
             json(jsonConfig, contentType = ContentType.Text.Plain)
         }

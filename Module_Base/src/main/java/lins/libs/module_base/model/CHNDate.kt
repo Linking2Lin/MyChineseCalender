@@ -4,6 +4,12 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
+/**
+ * 主界面所使用的“通用黄历数据模型”。
+ *
+ * 这个模型对应的是 `ChineseCalenderRepository` 返回的内容，
+ * 字段尽量和接口语义保持一致，方便 UI 直接展示。
+ */
 data class CHNDate(
     @SerialName("公历日期") val year: String? = null,
     @SerialName("农历日期") val lunarDate: String? = null,
@@ -14,16 +20,28 @@ data class CHNDate(
     @SerialName("值日星神") val zhiRiXingShen: String? = null,
     @SerialName("宜") val yi: String? = null,
     @SerialName("忌") val ji: String? = null,
-){
+) {
+    /**
+     * 把所有字段按顺序打包成列表。
+     * 这个方法主要用于调试、遍历或测试时快速检查字段完整性。
+     */
     fun asList(): List<String?> {
         return listOf(year, lunarDate, huangLiDate, huiLiDate, ganZhiDate, wuXing, zhiRiXingShen, yi, ji)
     }
 
-    fun getLength() : Int{
+    /**
+     * 返回字段数量。
+     * 当前和 `asList()` 保持一致，主要用于测试或结构校验。
+     */
+    fun getLength(): Int {
         return asList().size
     }
 
     companion object {
+        /**
+         * 测试用样例数据。
+         * 适合 Preview、单元测试和离线 UI 验证。
+         */
         val test = CHNDate(
             "2025年11月3日 星期一",
             "农历二零二五年 九月(大) 十四",

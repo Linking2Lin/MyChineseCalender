@@ -4,23 +4,23 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
-@Entity
+@Entity(tableName = "chn_date")
 data class CHNDateEntity(
-    @PrimaryKey(autoGenerate = true) val uid: Int?,
+    @PrimaryKey(autoGenerate = true) val uid: Int = 0,
     @ColumnInfo(name = "year") val year: String?,
-    @ColumnInfo(name = "lunarDate") val lunarDate: String?,
-    @ColumnInfo(name = "huangLiDate") val huangLiDate: String?,
-    @ColumnInfo(name = "huiLiDate") val huiLiDate: String?,
-    @ColumnInfo(name = "ganZhiDate") val ganZhiDate: String?,
-    @ColumnInfo(name = "wuXing") val wuXing: String?,
-    @ColumnInfo(name = "zhiRiXingShen") val zhiRiXingShen: String?,
+    @ColumnInfo(name = "lunar_date") val lunarDate: String?,
+    @ColumnInfo(name = "huang_li_date") val huangLiDate: String?,
+    @ColumnInfo(name = "hui_li_date") val huiLiDate: String?,
+    @ColumnInfo(name = "gan_zhi_date") val ganZhiDate: String?,
+    @ColumnInfo(name = "wu_xing") val wuXing: String?,
+    @ColumnInfo(name = "zhi_ri_xing_shen") val zhiRiXingShen: String?,
     @ColumnInfo(name = "yi") val yi: String?,
     @ColumnInfo(name = "ji") val ji: String?,
 ){
     companion object {
         fun convert(chnDate: CHNDate) : CHNDateEntity{
             return CHNDateEntity(
-                uid = null,
+                uid = 0,
                 year = chnDate.year,
                 lunarDate = chnDate.lunarDate,
                 huangLiDate = chnDate.huangLiDate,

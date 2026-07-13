@@ -1,17 +1,16 @@
 package lins.applications.appwidget.data
 
-
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import lins.libs.module_base.model.CHNDate
 import lins.libs.module_base.Logger
+import lins.libs.module_base.model.CHNDate
 import lins.libs.module_base.network.KtorClient
 
 class ChineseCalenderRepository {
-    private val TAG = "ChineseCalenderReposito"
+    private val TAG = "ChineseCalenderRepository"
 
     companion object {
         /**
@@ -29,38 +28,28 @@ class ChineseCalenderRepository {
         currentMonth: String,
         currentDay: String
     ): String {
-        val body = KtorClient.client.get(BASE_URL + "year=$currentYear&month=$currentMonth&day=$currentDay"){
-
-        }.bodyAsText(
-
-        )
+        val body = KtorClient.client.get(BASE_URL + "year=$currentYear&month=$currentMonth&day=$currentDay") {
+        }.bodyAsText()
         Logger.d(TAG, "getDateString: $body")
-
         return body
     }
-
-
 
     suspend fun getLunarDate(
         currentYear: String,
         currentMonth: String,
         currentDay: String
-    ) : CHNDate {
+    ): CHNDate {
         return withContext(Dispatchers.IO) {
-           return@withContext runCatching {
+            runCatching {
                 val dataString = getDateString(
                     currentDay = currentDay,
                     currentMonth = currentMonth,
                     currentYear = currentYear
                 )
-                Logger.d(TAG, "getLunarDate:  + $dataString")
+                Logger.d(TAG, "getLunarDate: $dataString")
                 Json.decodeFromString<CHNDate>(dataString)
             }.getOrNull() ?: CHNDate()
-//            }.onFailure {
-//                Logger.d(TAG, "getLunarDate: onFailure " + it.stackTraceToString())
-//            }.onSuccess {
-//                Logger.d(TAG, "getLunarDate onSuccess : $it")
-//            }
         }
     }
 }
+

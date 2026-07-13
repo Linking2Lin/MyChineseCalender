@@ -54,24 +54,29 @@ fun MainContent(
     viewModel: MainViewModel,
     modifier: Modifier = Modifier
 ) {
+    // 订阅 ViewModel 暴露的状态；只要数据变了，界面就会自动重组。
     val data by viewModel.lunarDate.collectAsState()
     val poem by viewModel.poem.collectAsState()
     val context = LocalContext.current
 
-    // 用 state 控制是否需要弹出选择器，避免 recomposition 重复弹出
+    // 通过一个布尔状态控制“是否准备打开系统图片选择器”。
+    // 这样可以避免在 Compose 重组时重复 launch 系统界面。
     var shouldLaunchPicker by remember { mutableStateOf(false) }
 
+    // 系统图片选择器：只允许用户选择图片，不允许视频/其他类型。
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia(),
         onResult = { uri ->
-            shouldLaunchPicker = false  // 选择器关闭后重置标记
+            shouldLaunchPicker = false
             if (uri != null) {
+                // 用户选中图片后，交给 WidgetImageManager 统一做缩放、裁剪、保存和刷新。
                 WidgetImageManager.saveImageToInternalStorage(context, uri)
             }
         }
     )
 
-    // 使用 LaunchedEffect 处理副作用，避免在 Composition 期间直接调用 launch
+    // 只有当 shouldLaunchPicker 从 false 变为 true 时，才真正打开系统选择器。
+    // Compose 中不建议在组合期间直接做副作用，所以这里用 LaunchedEffect 做桥接。
     LaunchedEffect(shouldLaunchPicker) {
         if (shouldLaunchPicker) {
             photoPickerLauncher.launch(
@@ -88,6 +93,7 @@ fun MainContent(
             onRefreshPoem = { viewModel.fetchPoem(context) }
         )
 
+        // 右下角浮动按钮：用于更换 widget 自定义头像。
         FloatingActionButton(
             onClick = {
                 shouldLaunchPicker = true
@@ -108,6 +114,8 @@ fun MainContentStateless(
     onRefreshPoem: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    // 这是页面的“纯展示层”：只接收数据和事件，不持有额外业务状态。
+    // 这样未来如果你想做页面重构，只需要替换 UI 结构，不需要动数据层。
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -115,16 +123,9 @@ fun MainContentStateless(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        // 主日期卡片
         MainDateCard(data = data)
-
-        // 诗词卡片
         PoemCard(poem = poem, onRefresh = onRefreshPoem)
-
-        // 详细历法卡片
         DetailInfoCard(data = data)
-
-        // 宜忌卡片
         YiJiSection(yi = data.yi, ji = data.ji)
     }
 }

@@ -15,16 +15,21 @@ import java.util.concurrent.atomic.AtomicBoolean
 private const val TAG = "RefreshAction"
 
 /**
- * 点击 Widget 时触发的刷新动作：
- * 1. 防连点：正在请求时忽略后续点击
- * 2. 使用 WidgetDataSyncHelper 拉取并缓存数据
- * 3. 更新当前 Widget UI
- * 4. 弹出 Toast 提示结果
+ * 点击 widget 时触发的刷新动作。
+ *
+ * 这个回调负责：
+ * 1. 通过原子锁避免用户连续点击导致并发刷新
+ * 2. 调用数据同步逻辑拉取最新农历
+ * 3. 刷新对应 widget 实例
+ * 4. 通过 Toast 反馈结果
  */
 class RefreshAction : ActionCallback {
 
     companion object {
-        /** 全局锁：正在刷新时为 true，防止重复点击 */
+        /**
+         * 进程内刷新锁。
+         * 只要当前有一个刷新任务在执行，其他点击就暂时忽略。
+         */
         private val isRefreshing = AtomicBoolean(false)
     }
 
@@ -33,7 +38,7 @@ class RefreshAction : ActionCallback {
         glanceId: GlanceId,
         parameters: ActionParameters
     ) {
-        // 防连点：如果已经在刷新中，直接返回
+        // 如果当前已经有刷新任务在跑，就直接返回，避免重复请求。
         if (!isRefreshing.compareAndSet(false, true)) {
             Logger.d(TAG, "onAction: already refreshing, ignoring click")
             withContext(Dispatchers.Main) {
@@ -45,12 +50,12 @@ class RefreshAction : ActionCallback {
         Logger.d(TAG, "onAction: refreshing widget $glanceId")
 
         try {
+            // 先拉取数据并写入缓存。
             val success = WidgetDataSyncHelper.fetchAndCacheLunarDate(context) != null
 
-            // 更新当前 Widget
+            // 再刷新当前 widget，让用户立即看到变化。
             MyAppWidget().update(context, glanceId)
 
-            // 弹 Toast
             withContext(Dispatchers.Main) {
                 val message = if (success) "刷新成功 ✓" else "刷新失败，请检查网络"
                 Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
