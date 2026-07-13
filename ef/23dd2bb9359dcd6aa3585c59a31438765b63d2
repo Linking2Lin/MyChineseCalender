@@ -1,0 +1,67 @@
+Module_Base/src/main/java/lins/libs/module_base/model/CHNDate.kt
+  s_dcd39143ddf986::t_54ce64cea0e80f 7-12,23-27,32-35,41-44
+  s_dcd39143ddf986::t_1fc6656df25e1b 36
+app/src/main/java/lins/applications/mychinesecalender/MainViewModel.kt
+  s_dcd39143ddf986::t_b965bf2622c24a 72-76,85,93,109-115
+  s_dcd39143ddf986::t_141d891482096a 28-29,33-34,38,40-42,45,52-53,65-66,68
+  s_dcd39143ddf986::t_0e013f898b80a9 117,121-135,138
+Module_Base/src/main/java/lins/libs/module_base/dao/CHNDateDao.kt
+  s_dcd39143ddf986::t_3e55280e6ae059 11,14,20,26-27
+Module_Base/src/main/java/lins/libs/module_base/network/KtorClient.kt
+  s_dcd39143ddf986::t_88b347a1e6b634 27-31
+  s_dcd39143ddf986::t_17385bc68f250b 35,38-39
+  s_dcd39143ddf986::t_e9c675036804b5 14-19,21-26,32-34,37,43
+Module_Base/build.gradle.kts
+  s_dcd39143ddf986::t_536ff860b9ea55 45-46,48
+Appwidget/src/main/java/lins/applications/appwidget/worker/SyncDateWorker.kt
+  s_dcd39143ddf986::t_a1aa70af4b16f1 11-16
+Appwidget/src/main/java/lins/applications/appwidget/helper/WidgetDataSyncHelper.kt
+  s_dcd39143ddf986::t_5a53adfe7d3550 14-19,24-30,54-57,73-78
+  s_dcd39143ddf986::t_700cba5a11a01f 86
+app/src/main/java/lins/applications/mychinesecalender/MainActivity.kt
+  s_dcd39143ddf986::t_cf81c23429ad9a 23-24,29,32,44-45,49-50,63-64
+  s_dcd39143ddf986::t_13735b0d54be22 31,46-47,56,65,68-69
+Appwidget/src/main/java/lins/applications/appwidget/data/ChineseCalenderRepository.kt
+  s_dcd39143ddf986::t_97e5577e70b7a1 9,13
+  s_dcd39143ddf986::t_13e1960360e6c5 31-32,41,43,49,55
+app/src/main/java/lins/applications/mychinesecalender/util/WidgetImageManager.kt
+  s_dcd39143ddf986::t_d1ec2e83140223 21-29,33-36,39-43,47,49-56,59,63,68,78,85,99,111,120,123
+Module_Base/src/main/java/lins/libs/module_base/model/CHNDateEntity.kt
+  s_dcd39143ddf986::t_33d5cbb652d862 7,9,11-16
+Module_Base/src/main/java/lins/libs/module_base/database/AppDataBase.kt
+  s_dcd39143ddf986::t_81354c4415ad7d 7-8
+  s_dcd39143ddf986::t_af8fa0ada4cd30 30-60,72
+  s_dcd39143ddf986::t_76c235ecb3f737 16
+Appwidget/src/main/java/lins/applications/appwidget/data/HkoRepository.kt
+  s_dcd39143ddf986::t_a2b790c731dfb6 42-47
+Appwidget/src/main/java/lins/applications/appwidget/MyAppWidget.kt
+  s_dcd39143ddf986::t_1e507d23aeaf98 59-62,65-72,80,86,91
+  s_dcd39143ddf986::t_cc23ad0ba3a468 118-121,124-125,127,131-133
+Appwidget/src/main/java/lins/applications/appwidget/receiver/DateChangeReceiver.kt
+  s_dcd39143ddf986::t_08af539350befd 16-19
+Module_Poem/src/main/java/lins/libs/module_poem/model/PoemResponse.kt
+  s_dcd39143ddf986::t_585353c66f30f4 5-10,18-25,34-39
+Appwidget/src/main/java/lins/applications/appwidget/action/RefreshAction.kt
+  s_dcd39143ddf986::t_8adbf8fd447220 18-24,29-32,41,53,56
+Module_Base/src/main/java/lins/libs/module_base/model/LunarDateResponse.kt
+  s_dcd39143ddf986::t_57959a85f7230b 7-14,19,22
+app/src/main/java/lins/applications/mychinesecalender/ui/content/MainContent.kt
+  s_dcd39143ddf986::t_9809021cb1b690 57,62-63,66,70,72,78-79,96
+  s_dcd39143ddf986::t_a29456401b3e5a 117-118
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.13",
+  "base_commit_sha": "ef23dd2bb9359dcd6aa3585c59a31438765b63d2",
+  "prompts": {},
+  "sessions": {
+    "s_dcd39143ddf986": {
+      "agent_id": {
+        "tool": "cursor",
+        "id": "82865634-8cee-40ef-bd5a-34b276c0d782",
+        "model": "claude-fable-5-high"
+      },
+      "human_author": "Linking Lin <Linking2Lin@Outlook.com>"
+    }
+  }
+}
