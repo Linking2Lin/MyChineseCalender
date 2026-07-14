@@ -10,7 +10,7 @@ import lins.libs.module_base.model.CHNDate
 import lins.libs.module_base.network.KtorClient
 
 class ChineseCalenderRepository {
-    private val TAG = "ChineseCalenderRepository"
+    private val TAG = "ChineseCalendarRepository"
 
     companion object {
         /**

@@ -7,7 +7,7 @@ import kotlinx.serialization.Serializable
 /**
  * 主界面所使用的“通用黄历数据模型”。
  *
- * 这个模型对应的是 `ChineseCalenderRepository` 返回的内容，
+ * 这个模型对应的是 `ChineseCalendarRepository` 返回的内容，
  * 字段尽量和接口语义保持一致，方便 UI 直接展示。
  */
 data class CHNDate(

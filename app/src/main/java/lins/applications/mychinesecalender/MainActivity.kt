@@ -17,7 +17,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.launch
 import lins.applications.appwidget.MyAppWidget
 import lins.applications.mychinesecalender.ui.content.MainContent
-import lins.applications.mychinesecalender.ui.theme.MyChineseCalenderTheme
+import lins.applications.mychinesecalender.ui.theme.MyChineseCalendarTheme
 
 class MainActivity : ComponentActivity() {
     // ViewModel 负责承载页面级状态；Activity 仅负责装配 UI 和协调少量副作用。
@@ -31,7 +31,7 @@ class MainActivity : ComponentActivity() {
 
         // Compose UI 入口：把数据和事件交给 MainContent，Activity 不直接写业务 UI。
         setContent {
-            MyChineseCalenderTheme {
+            MyChineseCalendarTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     MainContent(
                         viewModel = viewModel,

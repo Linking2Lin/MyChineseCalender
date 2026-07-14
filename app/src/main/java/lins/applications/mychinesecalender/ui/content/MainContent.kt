@@ -45,7 +45,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import lins.libs.module_base.model.CHNDate
 import lins.applications.mychinesecalender.MainViewModel
-import lins.applications.mychinesecalender.ui.theme.MyChineseCalenderTheme
+import lins.applications.mychinesecalender.ui.theme.MyChineseCalendarTheme
 import lins.applications.mychinesecalender.util.WidgetImageManager
 import lins.libs.module_poem.model.PoemResponse
 
@@ -352,7 +352,7 @@ fun PoemCard(
 @Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES, name = "Dark Mode")
 @Composable
 fun MainContentPreview() {
-    MyChineseCalenderTheme {
+    MyChineseCalendarTheme {
         Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
             Box(modifier = Modifier.fillMaxSize()) {
                 MainContentStateless(

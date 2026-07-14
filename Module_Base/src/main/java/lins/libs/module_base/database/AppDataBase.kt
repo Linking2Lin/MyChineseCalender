@@ -17,7 +17,7 @@ import lins.libs.module_base.model.LunarDateEntity
     exportSchema = false
 )
 abstract class AppDataBase : RoomDatabase() {
-    /** 主界面使用的 CHNDate DAO (ChineseCalenderRepository) */
+    /** 主界面使用的 CHNDate DAO（来源于通用黄历接口数据） */
     abstract fun chnDateDao(): CHNDateDao
 
     /** Widget 后台使用的 LunarDate DAO (HkoRepository) */

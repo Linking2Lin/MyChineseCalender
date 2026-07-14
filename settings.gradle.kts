@@ -22,7 +22,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "MyChineseCalender"
+rootProject.name = "MyChineseCalendar"
 include(":app")
 include(":Appwidget")
 include(":Module_Base")
