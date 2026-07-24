@@ -42,6 +42,9 @@ class MainViewModel() : ViewModel() {
     // 用户连续点击“刷新诗词”时，旧请求会被取消，避免重复并发。
     private var fetchPoemJob: Job? = null
 
+    private val _isPoemLoading = MutableStateFlow(false)
+    val isPoemLoading: StateFlow<Boolean> = _isPoemLoading.asStateFlow()
+
     // 诗词仓库需要 Context 才能访问 DataStore，所以这里统一从 applicationContext 构建，避免 Activity 泄露。
     private fun getPoemRepository(context: Context): PoemRepository {
         return poemRepository ?: PoemRepository(context.applicationContext).also {
@@ -54,10 +57,14 @@ class MainViewModel() : ViewModel() {
     fun fetchPoem(context: Context) {
         fetchPoemJob?.cancel()
         fetchPoemJob = viewModelScope.launch {
-            val repo = getPoemRepository(context)
-            val result = repo.fetchPoem()
-            if (result != null) {
-                _poem.value = result
+            _isPoemLoading.value = true
+            try {
+                val result = getPoemRepository(context).fetchPoem()
+                if (result != null) {
+                    _poem.value = result
+                }
+            } finally {
+                _isPoemLoading.value = false
             }
         }
     }
@@ -90,20 +97,29 @@ class MainViewModel() : ViewModel() {
                 _lunarData.value = cached.toResponse()
             }
 
-            // 再请求网络，若拿到新数据则刷新缓存和 UI。
+            // 再请求网络，若拿到有效新数据则刷新缓存和 UI。
             val result = withContext(Dispatchers.IO) {
                 HkoRepository.fetchLunarDate(dateString)
             }
 
-            if (result != null) {
-                _lunarData.value = result
+            if (result.isValid()) {
+                val validResult = result!!
+                _lunarData.value = validResult
                 withContext(Dispatchers.IO) {
-                    db.lunarDateDao().insertOrReplace(
-                        LunarDateEntity.fromResponse(dateString, result)
-                    )
+                    LunarDateEntity.fromResponse(dateString, validResult)?.let { entity ->
+                        db.lunarDateDao().insertOrReplace(entity)
+                    }
                 }
             }
         }
+    }
+
+    private fun LunarDateResponse?.isValid(): Boolean {
+        return this != null && lunarYear.isNotBlank() && lunarDate.isNotBlank()
+    }
+
+    private fun CHNDate.isValid(): Boolean {
+        return year != null || lunarDate != null || huangLiDate != null || huiLiDate != null || ganZhiDate != null || wuXing != null || zhiRiXingShen != null || yi != null || ji != null
     }
 
     /**

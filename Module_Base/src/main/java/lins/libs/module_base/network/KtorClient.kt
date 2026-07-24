@@ -2,6 +2,7 @@ package lins.libs.module_base.network
 
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.android.Android
+import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.logging.DEFAULT
 import io.ktor.client.plugins.logging.LogLevel
@@ -37,6 +38,12 @@ object KtorClient {
             // 网络超时策略：避免弱网环境下长时间卡住。
             connectTimeout = 10_000
             socketTimeout = 10_000
+        }
+
+        install(HttpTimeout) {
+            requestTimeoutMillis = 15_000
+            connectTimeoutMillis = 10_000
+            socketTimeoutMillis = 10_000
         }
 
         install(Logging) {

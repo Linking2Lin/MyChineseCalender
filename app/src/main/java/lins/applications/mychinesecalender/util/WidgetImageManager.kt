@@ -5,13 +5,12 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.widget.Toast
-import androidx.glance.appwidget.GlanceAppWidgetManager
+import lins.applications.appwidget.helper.WidgetDataSyncHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import lins.applications.appwidget.MyAppWidget
 import lins.applications.appwidget.WIDGET_CUSTOM_IMAGE_FILE
 import lins.applications.appwidget.getCircleBitmap
 import java.io.File
@@ -112,17 +111,22 @@ object WidgetImageManager {
                 val circular = getCircleBitmap(scaled)
                 if (circular !== scaled) scaled.recycle()
                 val file = File(appContext.filesDir, WIDGET_CUSTOM_IMAGE_FILE)
-                FileOutputStream(file).use { fos ->
-                    circular.compress(Bitmap.CompressFormat.PNG, 100, fos)
+                val temporaryFile = File(appContext.filesDir, "$WIDGET_CUSTOM_IMAGE_FILE.tmp")
+                try {
+                    FileOutputStream(temporaryFile).use { fos ->
+                        check(circular.compress(Bitmap.CompressFormat.PNG, 100, fos)) {
+                            "Unable to encode widget image"
+                        }
+                        fos.fd.sync()
+                    }
+                    check(temporaryFile.renameTo(file)) { "Unable to replace widget image" }
+                } finally {
+                    circular.recycle()
+                    if (temporaryFile.exists()) temporaryFile.delete()
                 }
-                circular.recycle()
 
                 // 第六步：刷新所有 widget 实例。
-                val manager = GlanceAppWidgetManager(appContext)
-                val widget = MyAppWidget()
-                manager.getGlanceIds(MyAppWidget::class.java).forEach { glanceId ->
-                    widget.update(appContext, glanceId)
-                }
+                WidgetDataSyncHelper.updateAllWidgets(appContext)
 
                 withContext(Dispatchers.Main) {
                     Toast.makeText(appContext, "Widget 图片已更新 ✓", Toast.LENGTH_SHORT).show()

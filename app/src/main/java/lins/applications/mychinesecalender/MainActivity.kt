@@ -1,7 +1,6 @@
 package lins.applications.mychinesecalender
 
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -10,12 +9,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
-import androidx.glance.appwidget.GlanceAppWidgetManager
-import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
-import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.launch
-import lins.applications.appwidget.MyAppWidget
+import lins.applications.appwidget.helper.WidgetDataSyncHelper
 import lins.applications.mychinesecalender.ui.content.MainContent
 import lins.applications.mychinesecalender.ui.theme.MyChineseCalendarTheme
 
@@ -46,31 +42,9 @@ class MainActivity : ComponentActivity() {
         viewModel.getTodayLunarInfo(applicationContext)
         viewModel.fetchPoem(applicationContext)
 
-        // 监听农历数据变化：只要数据更新，就同步刷新所有 widget。
-        // repeatOnLifecycle 会在 STARTED/STOPPED 间自动挂起/恢复，避免页面退到后台后继续收集。
+        // 启动时做一次统一同步，保证页面和 widget 使用同一份有效缓存。
         lifecycleScope.launch {
-            repeatOnLifecycle(Lifecycle.State.STARTED) {
-                viewModel.lunarData.collect { lunarInfo ->
-                    if (lunarInfo != null) {
-                        Log.d(TAG, "今天是：${lunarInfo.lunarYear} ${lunarInfo.lunarDate}")
-                        updateWidgets()
-                    }
-                }
-            }
+            WidgetDataSyncHelper.syncAndUpdate(applicationContext)
         }
-    }
-
-    // 逐个更新已存在的 widget 实例。
-    // 这里不直接依赖某个固定 glanceId，而是通过 manager 查询当前所有实例，保证多副本同步。
-    private suspend fun updateWidgets() {
-        val manager = GlanceAppWidgetManager(context = this@MainActivity)
-        val widget = MyAppWidget()
-        manager.getGlanceIds(widget::class.java).forEach { glanceId ->
-            widget.update(this@MainActivity, glanceId)
-        }
-    }
-
-    companion object {
-        private const val TAG = "MainActivity"
     }
 }

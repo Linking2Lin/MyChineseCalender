@@ -73,31 +73,22 @@ const val WIDGET_CUSTOM_IMAGE_FILE = "widget_custom_image.png"
 class MyAppWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        var date: LunarDateResponse? = null
-        var customBitmap: Bitmap? = null
-
-        try {
-            // Widget 不主动请求网络，避免每次展示都打网络；网络刷新由 Worker / 广播接收器负责。
-            date = withContext(Dispatchers.IO) {
+        val snapshot = runCatching {
+            withContext(Dispatchers.IO) {
                 val today = LocalDate.now()
                 val dateString = today.format(Constants.DATE_FORMATTER)
                 val db = AppDataBase.getInstance(context)
-
-                // 优先读取今天的缓存；如果今天没有数据，则回退到最近一条记录，保证 widget 不至于空白。
-                db.lunarDateDao().getByDate(dateString)?.toResponse()
+                val date = db.lunarDateDao().getByDate(dateString)?.toResponse()
                     ?: db.lunarDateDao().getLast()?.toResponse()
+                val customBitmap = loadCustomImage(context)
+                date to customBitmap
             }
-
-            // 自定义头像同样在 IO 线程读取，避免阻塞 widget 线程。
-            customBitmap = withContext(Dispatchers.IO) {
-                loadCustomImage(context)
-            }
-        } catch (e: Exception) {
+        }.onFailure { e ->
             Logger.e(TAG, "provideGlance: error loading data", e)
-        }
+        }.getOrNull()
 
         provideContent {
-            WidgetContent(date, customBitmap)
+            WidgetContent(snapshot?.first, snapshot?.second)
         }
     }
 

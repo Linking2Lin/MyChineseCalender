@@ -29,10 +29,9 @@ abstract class AppDataBase : RoomDatabase() {
 
         val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(db: SupportSQLiteDatabase) {
-                // 1. 创建新表（snake_case 列名）
                 db.execSQL(
                     """
-                    CREATE TABLE IF NOT EXISTS `chn_date` (
+                    CREATE TABLE IF NOT EXISTS `chn_date_new` (
                         `uid` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
                         `year` TEXT,
                         `lunar_date` TEXT,
@@ -46,16 +45,15 @@ abstract class AppDataBase : RoomDatabase() {
                     )
                     """.trimIndent()
                 )
-                // 2. 把旧表数据迁移到新表（列名映射：驼峰 → 下划线）
                 db.execSQL(
                     """
-                    INSERT INTO `chn_date` (`uid`, `year`, `lunar_date`, `huang_li_date`, `hui_li_date`, `gan_zhi_date`, `wu_xing`, `zhi_ri_xing_shen`, `yi`, `ji`)
+                    INSERT INTO `chn_date_new` (`uid`, `year`, `lunar_date`, `huang_li_date`, `hui_li_date`, `gan_zhi_date`, `wu_xing`, `zhi_ri_xing_shen`, `yi`, `ji`)
                     SELECT `uid`, `year`, `lunarDate`, `huangLiDate`, `huiLiDate`, `ganZhiDate`, `wuXing`, `zhiRiXingShen`, `yi`, `ji`
                     FROM `CHNDateEntity`
                     """.trimIndent()
                 )
-                // 3. 删除旧表
-                db.execSQL("DROP TABLE IF EXISTS `CHNDateEntity`")
+                db.execSQL("DROP TABLE `CHNDateEntity`")
+                db.execSQL("ALTER TABLE `chn_date_new` RENAME TO `chn_date`")
             }
         }
 

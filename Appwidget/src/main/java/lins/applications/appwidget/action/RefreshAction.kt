@@ -5,7 +5,6 @@ import android.widget.Toast
 import androidx.glance.GlanceId
 import androidx.glance.action.ActionParameters
 import androidx.glance.appwidget.action.ActionCallback
-import lins.applications.appwidget.MyAppWidget
 import lins.applications.appwidget.helper.WidgetDataSyncHelper
 import lins.libs.module_base.Logger
 import kotlinx.coroutines.Dispatchers
@@ -50,11 +49,8 @@ class RefreshAction : ActionCallback {
         Logger.d(TAG, "onAction: refreshing widget $glanceId")
 
         try {
-            // 先拉取数据并写入缓存。
-            val success = WidgetDataSyncHelper.fetchAndCacheLunarDate(context) != null
-
-            // 再刷新当前 widget，让用户立即看到变化。
-            MyAppWidget().update(context, glanceId)
+            // 同步成功后统一刷新所有实例，避免多副本显示不同日期。
+            val success = WidgetDataSyncHelper.syncAndUpdate(context)
 
             withContext(Dispatchers.Main) {
                 val message = if (success) "刷新成功 ✓" else "刷新失败，请检查网络"

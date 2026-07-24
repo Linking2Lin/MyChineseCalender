@@ -13,7 +13,9 @@ data class PoemResponse(
     val status: String,
     val data: PoemData? = null,
     val token: String? = null
-)
+) {
+    fun isUsable(): Boolean = status == "success" && !data?.content.isNullOrBlank()
+}
 
 /**
  * 诗词正文数据。

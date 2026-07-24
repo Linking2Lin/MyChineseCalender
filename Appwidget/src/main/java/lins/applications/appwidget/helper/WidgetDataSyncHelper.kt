@@ -36,12 +36,12 @@ object WidgetDataSyncHelper {
         return try {
             val response = HkoRepository.fetchLunarDate(dateString)
             if (response != null) {
-                val db = AppDataBase.getInstance(context)
-                db.lunarDateDao().insertOrReplace(
-                    LunarDateEntity.fromResponse(dateString, response)
-                )
-                db.lunarDateDao().cleanup(7)
-                Logger.d(TAG, "Fetched & cached lunar date for $dateString")
+                LunarDateEntity.fromResponse(dateString, response)?.let { entity ->
+                    val db = AppDataBase.getInstance(context)
+                    db.lunarDateDao().insertOrReplace(entity)
+                    db.lunarDateDao().cleanup(7)
+                    Logger.d(TAG, "Fetched & cached lunar date for $dateString")
+                }
             }
             response
         } catch (e: Exception) {
@@ -79,7 +79,9 @@ object WidgetDataSyncHelper {
      */
     suspend fun syncAndUpdate(context: Context): Boolean {
         val response = fetchAndCacheLunarDate(context)
-        updateAllWidgets(context)
+        if (response != null) {
+            updateAllWidgets(context)
+        }
         return response != null
     }
 }

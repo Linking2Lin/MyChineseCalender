@@ -1,6 +1,8 @@
 package lins.applications.mychinesecalender
 
+import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import lins.applications.appwidget.worker.SyncDateWorker
@@ -19,10 +21,15 @@ class App : MyApplication() {
     }
 
     private fun setupWorkManager() {
+        val networkRequired = Constraints.Builder()
+            .setRequiredNetworkType(NetworkType.CONNECTED)
+            .build()
         val updateDateRequest = PeriodicWorkRequestBuilder<SyncDateWorker>(
             repeatInterval = 6,
             repeatIntervalTimeUnit = TimeUnit.HOURS,
-        ).build()
+        )
+            .setConstraints(networkRequired)
+            .build()
 
         // 使用 enqueueUniquePeriodicWork 避免重复注册
         WorkManager.getInstance(this).enqueueUniquePeriodicWork(

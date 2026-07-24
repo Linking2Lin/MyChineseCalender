@@ -79,7 +79,7 @@ class PoemRepository(private val context: Context) {
                 }
             }
             if (response.status.isSuccess()) {
-                response.body<PoemResponse>()
+                response.body<PoemResponse>().takeIf(PoemResponse::isUsable)
             } else if (response.status.value == 401 || response.status.value == 403) {
                 // Token 失效，清除缓存并重试一次
                 Log.w(TAG, "Token rejected (HTTP ${response.status}), clearing and retrying")
@@ -91,7 +91,7 @@ class PoemRepository(private val context: Context) {
                     }
                 }
                 if (retryResponse.status.isSuccess()) {
-                    retryResponse.body<PoemResponse>()
+                    retryResponse.body<PoemResponse>().takeIf(PoemResponse::isUsable)
                 } else {
                     Log.e(TAG, "Retry failed: HTTP ${retryResponse.status}")
                     null

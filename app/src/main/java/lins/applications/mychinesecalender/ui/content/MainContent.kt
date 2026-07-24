@@ -57,6 +57,7 @@ fun MainContent(
     // 订阅 ViewModel 暴露的状态；只要数据变了，界面就会自动重组。
     val data by viewModel.lunarDate.collectAsState()
     val poem by viewModel.poem.collectAsState()
+    val isPoemLoading by viewModel.isPoemLoading.collectAsState()
     val context = LocalContext.current
 
     // 通过一个布尔状态控制“是否准备打开系统图片选择器”。
@@ -90,6 +91,7 @@ fun MainContent(
         MainContentStateless(
             data = data,
             poem = poem,
+            isPoemLoading = isPoemLoading,
             onRefreshPoem = { viewModel.fetchPoem(context) }
         )
 
@@ -111,6 +113,7 @@ fun MainContent(
 fun MainContentStateless(
     data: CHNDate,
     poem: PoemResponse?,
+    isPoemLoading: Boolean,
     onRefreshPoem: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -124,7 +127,7 @@ fun MainContentStateless(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         MainDateCard(data = data)
-        PoemCard(poem = poem, onRefresh = onRefreshPoem)
+        PoemCard(poem = poem, isLoading = isPoemLoading, onRefresh = onRefreshPoem)
         DetailInfoCard(data = data)
         YiJiSection(yi = data.yi, ji = data.ji)
     }
@@ -292,13 +295,14 @@ fun YiJiCard(
 @Composable
 fun PoemCard(
     poem: PoemResponse?,
+    isLoading: Boolean,
     onRefresh: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .clickable { onRefresh() },
+            .clickable(enabled = !isLoading) { onRefresh() },
         colors = CardDefaults.cardColors(
             containerColor = MaterialTheme.colorScheme.tertiaryContainer,
             contentColor = MaterialTheme.colorScheme.onTertiaryContainer
@@ -312,7 +316,15 @@ fun PoemCard(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             val poemData = poem?.data
-            if (poemData != null) {
+            if (isLoading) {
+                Text(
+                    text = "正在加载诗词…",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.7f),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            } else if (poemData != null) {
                 Text(
                     text = poemData.content,
                     style = MaterialTheme.typography.titleMedium,
@@ -358,6 +370,7 @@ fun MainContentPreview() {
                 MainContentStateless(
                     data = CHNDate.test,
                     poem = null,
+                    isPoemLoading = false,
                     onRefreshPoem = {}
                 )
                 FloatingActionButton(

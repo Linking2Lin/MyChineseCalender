@@ -16,17 +16,18 @@ data class LunarDateEntity(
     val date: String,
 
     @ColumnInfo(name = "lunar_year")
-    val lunarYear: String,
+    val lunarYear: String = "",
 
     @ColumnInfo(name = "lunar_date")
-    val lunarDate: String,
+    val lunarDate: String = "",
 ) {
     fun toResponse(): LunarDateResponse {
         return LunarDateResponse(lunarYear = lunarYear, lunarDate = lunarDate)
     }
 
     companion object {
-        fun fromResponse(dateKey: String, response: LunarDateResponse): LunarDateEntity {
+        fun fromResponse(dateKey: String, response: LunarDateResponse): LunarDateEntity? {
+            if (response.lunarYear.isBlank() || response.lunarDate.isBlank()) return null
             return LunarDateEntity(
                 date = dateKey,
                 lunarYear = response.lunarYear,
