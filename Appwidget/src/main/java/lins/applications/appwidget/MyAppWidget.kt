@@ -32,11 +32,11 @@ import androidx.glance.layout.Column
 import androidx.glance.layout.ContentScale
 import androidx.glance.layout.Row
 import androidx.glance.layout.Spacer
+import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxSize
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
-import androidx.glance.layout.size
 import androidx.glance.layout.width
 import androidx.glance.layout.wrapContentWidth
 import androidx.glance.preview.ExperimentalGlancePreviewApi
@@ -94,8 +94,10 @@ class MyAppWidget : GlanceAppWidget() {
 
     companion object {
         val SMALL_SQUARE = DpSize(50.dp, 50.dp)
-        val HORIZONTAL_RECTANGLE = DpSize(100.dp, 50.dp)
-        val BIG_SQUARE = DpSize(250.dp, 50.dp)
+        // 中/大尺寸高度取 100dp：两行 22sp 文字 + 头像 12dp 上下边距需要约 90dp，
+        // 100dp 时自适应头像 ≈ 68dp（68 + 24 + 8 = 100），与 Preview 高度一致。
+        val HORIZONTAL_RECTANGLE = DpSize(100.dp, 100.dp)
+        val BIG_SQUARE = DpSize(250.dp, 100.dp)
 
         /**
          * 从内部存储加载用户自定义的 widget 头像图片。
@@ -131,13 +133,13 @@ class MyAppWidget : GlanceAppWidget() {
         }
     }
 
-    override val sizeMode = SizeMode.Responsive(
-        setOf(
-            SMALL_SQUARE,
-            HORIZONTAL_RECTANGLE,
-            BIG_SQUARE
-        )
-    )
+    // 必须用 Exact 而不是 Responsive：
+    // Responsive 模式下 LocalSize 是「声明尺寸」，系统却按 widget 实际尺寸渲染
+    // （例如 1 格高实际约 60~80dp，而声明 100dp），导致 fillMaxHeight 的高度与
+    // width(avatarSize) 不一致，头像变成矩形；Exact 模式下 LocalSize 永远等于
+    // 实际尺寸（Android 12+ 来自 OPTION_APPWIDGET_SIZES，resize 时重新组合），
+    // fillMaxHeight 的高度 = width(avatarSize)，头像保证正方形且填满可用空间。
+    override val sizeMode = SizeMode.Exact
 }
 
 /**
@@ -157,6 +159,35 @@ fun getCircleBitmap(bitmap: Bitmap): Bitmap {
     canvas.drawBitmap(bitmap, rect, rect, paint)
     return output
 }
+
+// ────────────────────────────────────────────────────────────────
+//  布局常量：头像尺寸自适应相关
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * 外层透明容器的垂直 padding（上下各 4dp）。
+ * 头像的自适应计算需要扣除它，因此抽成常量与 padding 保持同步。
+ */
+private val OUTER_VERTICAL_PADDING = 4.dp
+
+/**
+ * 头像相对胶囊背景的固定边距：上、下、左各 12dp。
+ * Glance 的 padding 是 View 内边距（缩小内容而不是撑大外层），
+ * 因此 12dp 边距以胶囊的内边距实现；头像本身不带 padding，
+ * 尺寸 = 胶囊内容高度，正好填满边距内的可用空间。
+ * 头像边长 = widget 高度 - 2 * OUTER_VERTICAL_PADDING - 2 * AVATAR_EDGE_MARGIN。
+ */
+private val AVATAR_EDGE_MARGIN = 12.dp
+
+/**
+ * 文字区域上/下边距（各 6dp），字号自适应计算需要扣除它。
+ */
+private val TEXT_AREA_VERTICAL_PADDING = 6.dp
+
+/**
+ * 两行文字之间的间距，字号自适应计算需要扣除它。
+ */
+private val TEXT_LINE_SPACING = 4.dp
 
 // ────────────────────────────────────────────────────────────────
 //  主入口
@@ -239,11 +270,26 @@ fun MediumWidgetLayout(
     customBitmap: Bitmap?,
     modifier: GlanceModifier = GlanceModifier
 ) {
+    // 头像边长（正方形）：高度由 fillMaxHeight 动态填满；Glance 无 aspectRatio，
+    // 宽度与圆角取与高度相同的计算值：widget 高度 - 外层上下 padding - 胶囊上下边距(12dp × 2)
+    val avatarSize = (LocalSize.current.height - OUTER_VERTICAL_PADDING * 2 - AVATAR_EDGE_MARGIN * 2)
+        .coerceAtLeast(1.dp)
+    // 字号自适应：不再写死 fontSize，每行可用高度 = (文字区域高度 - 上下边距 - 两行间距) / 2，
+    // 字号取行高的约 85%（行高 ≈ 字号 × 1.17），使文字高度正好填满每行的可用最大高度。
+    val textLineHeight = (
+        LocalSize.current.height
+            - OUTER_VERTICAL_PADDING * 2
+            - AVATAR_EDGE_MARGIN * 2
+            - TEXT_AREA_VERTICAL_PADDING * 2
+            - TEXT_LINE_SPACING
+        ) / 2
+    val textFontSize = (textLineHeight.coerceAtLeast(1.dp) * 0.85f).value.sp
+
     Row(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Transparent)
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .padding(horizontal = 12.dp, vertical = OUTER_VERTICAL_PADDING),
         verticalAlignment = Alignment.CenterVertically,
         horizontalAlignment = Alignment.Start,
     ) {
@@ -257,20 +303,28 @@ fun MediumWidgetLayout(
                 // 由于 Glance 暂不支持直接传入 Compose Brush 来绘制渐变，
                 // 我们通过一个带有 gradient 渐变的 XML drawable 来实现渐变效果。
                 .background(ImageProvider(R.drawable.widget_gradient_background))
-                .padding(11.dp)
+                // 头像的 12dp 边距放在胶囊上：Glance 的 padding 是 View 内边距，
+                // 若放在图片上会把图片内容缩小（而不是撑大外层），导致图片变小。
+                .padding(
+                    start = AVATAR_EDGE_MARGIN,
+                    top = AVATAR_EDGE_MARGIN,
+                    end = AVATAR_EDGE_MARGIN,
+                    bottom = AVATAR_EDGE_MARGIN
+                )
                 .clickable(actionRunCallback<RefreshAction>()),
             verticalAlignment = Alignment.CenterVertically,
             horizontalAlignment = Alignment.Start,
         ) {
-            // ── 左侧：圆形头像图片 ──
+            // ── 左侧：圆形头像图片（尺寸自适应，边长 = 胶囊内容高度，正好填满 12dp 边距内的空间）──
             if (customBitmap != null) {
                 Image(
                     provider = ImageProvider(customBitmap),
                     contentDescription = "自定义头像",
                     contentScale = ContentScale.Crop,
                     modifier = GlanceModifier
-                        .size(66.dp)
-                        .cornerRadius(33.dp), // 双重保险：RemoteViews 级别圆形裁剪，重启缓存恢复后仍生效
+                        .fillMaxHeight()
+                        .width(avatarSize)
+                        .cornerRadius(avatarSize / 2),
                 )
             } else {
                 Image(
@@ -278,16 +332,20 @@ fun MediumWidgetLayout(
                     contentDescription = "默认头像",
                     contentScale = ContentScale.Crop,
                     modifier = GlanceModifier
-                        .size(66.dp)
-                        .cornerRadius(33.dp),
+                        .fillMaxHeight()
+                        .width(avatarSize)
+                        .cornerRadius(avatarSize / 2),
                 )
             }
 
             Spacer(modifier = GlanceModifier.width(10.dp))
 
-            // ── 右侧：日期文字 ──
+            // ── 右侧：日期文字（两行作为整体，与图片区域垂直居中对齐，上下各留 6dp）──
             Column(
-                modifier = GlanceModifier.wrapContentWidth(), // 文字容器根据内容自适应宽度
+                modifier = GlanceModifier
+                    .wrapContentWidth() // 宽度按内容自适应
+                    .fillMaxHeight() // 高度填满：与图片区域同高，两行文字整体垂直居中
+                    .padding(vertical = TEXT_AREA_VERTICAL_PADDING), // 上下各 6dp 间距
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalAlignment = Alignment.Start,
             ) {
@@ -296,20 +354,20 @@ fun MediumWidgetLayout(
                     text = date.lunarYear,
                     style = TextStyle(
                         color = GlanceTheme.colors.onSurface,
-                        fontSize = 22.sp,
+                        fontSize = textFontSize,
                         fontWeight = FontWeight.Bold,
                     ),
                     maxLines = 1,
                 )
 
-                Spacer(modifier = GlanceModifier.height(4.dp))
+                Spacer(modifier = GlanceModifier.height(TEXT_LINE_SPACING))
 
                 // 第二行：lunarDate
                 Text(
                     text = date.lunarDate,
                     style = TextStyle(
                         color = GlanceTheme.colors.onSurface,
-                        fontSize = 22.sp,
+                        fontSize = textFontSize,
                         fontWeight = FontWeight.Bold,
                     ),
                     maxLines = 1,
@@ -330,11 +388,26 @@ fun MaxWidgetLayout(
     customBitmap: Bitmap?,
     modifier: GlanceModifier = GlanceModifier
 ) {
+    // 头像边长（正方形）：高度由 fillMaxHeight 动态填满；Glance 无 aspectRatio，
+    // 宽度与圆角取与高度相同的计算值：widget 高度 - 外层上下 padding - 胶囊上下边距(12dp × 2)
+    val avatarSize = (LocalSize.current.height - OUTER_VERTICAL_PADDING * 2 - AVATAR_EDGE_MARGIN * 2)
+        .coerceAtLeast(1.dp)
+    // 字号自适应：不再写死 fontSize，每行可用高度 = (文字区域高度 - 上下边距 - 两行间距) / 2，
+    // 字号取行高的约 85%（行高 ≈ 字号 × 1.17），使文字高度正好填满每行的可用最大高度。
+    val textLineHeight = (
+        LocalSize.current.height
+            - OUTER_VERTICAL_PADDING * 2
+            - AVATAR_EDGE_MARGIN * 2
+            - TEXT_AREA_VERTICAL_PADDING * 2
+            - TEXT_LINE_SPACING
+        ) / 2
+    val textFontSize = (textLineHeight.coerceAtLeast(1.dp) * 0.85f).value.sp
+
     Row(
         modifier = modifier
             .fillMaxSize()
             .background(Color.Transparent)
-            .padding(horizontal = 8.dp, vertical = 4.dp),
+            .padding(horizontal = 12.dp, vertical = OUTER_VERTICAL_PADDING),
         verticalAlignment = Alignment.CenterVertically,
         horizontalAlignment = Alignment.Start,
     ) {
@@ -348,20 +421,28 @@ fun MaxWidgetLayout(
                 // 由于 Glance 暂不支持直接传入 Compose Brush 来绘制渐变，
                 // 我们通过一个带有 gradient 渐变的 XML drawable 来实现渐变效果。
                 .background(ImageProvider(R.drawable.widget_gradient_background))
-                .padding(11.dp)
+                // 头像的 12dp 边距放在胶囊上：Glance 的 padding 是 View 内边距，
+                // 若放在图片上会把图片内容缩小（而不是撑大外层），导致图片变小。
+                .padding(
+                    start = AVATAR_EDGE_MARGIN,
+                    top = AVATAR_EDGE_MARGIN,
+                    end = AVATAR_EDGE_MARGIN,
+                    bottom = AVATAR_EDGE_MARGIN
+                )
                 .clickable(actionRunCallback<RefreshAction>()),
             verticalAlignment = Alignment.CenterVertically,
             horizontalAlignment = Alignment.Start,
         ) {
-            // ── 左侧：圆形头像图片 ──
+            // ── 左侧：圆形头像图片（尺寸自适应，边长 = 胶囊内容高度，正好填满 12dp 边距内的空间）──
             if (customBitmap != null) {
                 Image(
                     provider = ImageProvider(customBitmap),
                     contentDescription = "自定义头像",
                     contentScale = ContentScale.Crop,
                     modifier = GlanceModifier
-                        .size(66.dp)
-                        .cornerRadius(33.dp), // 双重保险：RemoteViews 级别圆形裁剪，重启缓存恢复后仍生效
+                        .fillMaxHeight()
+                        .width(avatarSize)
+                        .cornerRadius(avatarSize / 2),
                 )
             } else {
                 Image(
@@ -369,16 +450,20 @@ fun MaxWidgetLayout(
                     contentDescription = "默认头像",
                     contentScale = ContentScale.Crop,
                     modifier = GlanceModifier
-                        .size(66.dp)
-                        .cornerRadius(33.dp),
+                        .fillMaxHeight()
+                        .width(avatarSize)
+                        .cornerRadius(avatarSize / 2),
                 )
             }
 
             Spacer(modifier = GlanceModifier.width(10.dp))
 
-            // ── 右侧：日期文字 ──
+            // ── 右侧：日期文字（两行作为整体，与图片区域垂直居中对齐，上下各留 6dp）──
             Column(
-                modifier = GlanceModifier.defaultWeight(), // 占用剩余宽度
+                modifier = GlanceModifier
+                    .defaultWeight() // 占用剩余宽度
+                    .fillMaxHeight() // 高度填满：与图片区域同高，两行文字整体垂直居中
+                    .padding(vertical = TEXT_AREA_VERTICAL_PADDING), // 上下各 6dp 间距
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalAlignment = Alignment.Start,
             ) {
@@ -392,7 +477,7 @@ fun MaxWidgetLayout(
                         text = date.lunarDate + "，" +date.lunarYear,
                         style = TextStyle(
                             color = GlanceTheme.colors.onSurface,
-                            fontSize = 22.sp,
+                            fontSize = textFontSize,
                             fontWeight = FontWeight.Bold,
                         ),
                         maxLines = 1,
@@ -404,14 +489,14 @@ fun MaxWidgetLayout(
                         text = date.lunarDate,
                         style = TextStyle(
                             color = GlanceTheme.colors.onSurface,
-                            fontSize = 22.sp,
+                            fontSize = textFontSize,
                             fontWeight = FontWeight.Bold,
                         ),
                         maxLines = 1,
                     )*/
                 }
 
-                Spacer(modifier = GlanceModifier.height(4.dp))
+                Spacer(modifier = GlanceModifier.height(TEXT_LINE_SPACING))
 
                 // 第二行：
                 Row(
@@ -422,7 +507,7 @@ fun MaxWidgetLayout(
                         text = "人心好静，而欲牵之",
                         style = TextStyle(
                             color = GlanceTheme.colors.onSurface,
-                            fontSize = 22.sp,
+                            fontSize = textFontSize,
                             fontWeight = FontWeight.Bold,
                         ),
                         maxLines = 1,
@@ -434,7 +519,7 @@ fun MaxWidgetLayout(
                         text = "而心扰之",
                         style = TextStyle(
                             color = GlanceTheme.colors.onSurface,
-                            fontSize = 22.sp,
+                            fontSize = textFontSize,
                             fontWeight = FontWeight.Bold,
                         ),
                         maxLines = 1,
@@ -498,7 +583,6 @@ fun PreSmallWidgetContent() {
     GlanceTheme {
         SmallWidgetLayout(
             date = LunarDateResponse(lunarYear = "丙午年，马", lunarDate = "二月初九"),
-            //customBitmap = null
         )
     }
 }
