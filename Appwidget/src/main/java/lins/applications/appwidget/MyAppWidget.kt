@@ -95,7 +95,7 @@ class MyAppWidget : GlanceAppWidget() {
     companion object {
         val SMALL_SQUARE = DpSize(50.dp, 50.dp)
         // 中/大尺寸高度取 100dp：两行 22sp 文字 + 头像 12dp 上下边距需要约 90dp，
-        // 100dp 时自适应头像 ≈ 68dp（68 + 24 + 8 = 100），与 Preview 高度一致。
+        // 100dp 时自适应头像 ≈ 60dp（60 + 24 + 16 = 100）。
         val HORIZONTAL_RECTANGLE = DpSize(100.dp, 100.dp)
         val BIG_SQUARE = DpSize(250.dp, 100.dp)
 
@@ -165,19 +165,24 @@ fun getCircleBitmap(bitmap: Bitmap): Bitmap {
 // ────────────────────────────────────────────────────────────────
 
 /**
- * 外层透明容器的垂直 padding（上下各 4dp）。
+ * 外层透明容器的垂直 padding（上下各 6dp）。
  * 头像的自适应计算需要扣除它，因此抽成常量与 padding 保持同步。
  */
-private val OUTER_VERTICAL_PADDING = 4.dp
+private val OUTER_VERTICAL_PADDING = 6.dp
 
 /**
- * 头像相对胶囊背景的固定边距：上、下、左各 12dp。
+ * 胶囊内容区的固定边距：四边各 12dp。
  * Glance 的 padding 是 View 内边距（缩小内容而不是撑大外层），
- * 因此 12dp 边距以胶囊的内边距实现；头像本身不带 padding，
- * 尺寸 = 胶囊内容高度，正好填满边距内的可用空间。
- * 头像边长 = widget 高度 - 2 * OUTER_VERTICAL_PADDING - 2 * AVATAR_EDGE_MARGIN。
+ * 因此 12dp 边距以胶囊的内边距实现；头像在该内容区内另外收进。
  */
 private val AVATAR_EDGE_MARGIN = 12.dp
+
+/**
+ * 头像在胶囊内容区中额外收缩的垂直边距（上下各 2dp）。
+ * 不改变胶囊和文字的尺寸，只将头像直径缩小 4dp；
+ * 头像左边缘保持不变，右侧文字会随之左移 4dp。
+ */
+private val AVATAR_VISUAL_INSET = 2.dp
 
 /**
  * 文字区域上/下边距（各 6dp），字号自适应计算需要扣除它。
@@ -270,9 +275,14 @@ fun MediumWidgetLayout(
     customBitmap: Bitmap?,
     modifier: GlanceModifier = GlanceModifier
 ) {
-    // 头像边长（正方形）：高度由 fillMaxHeight 动态填满；Glance 无 aspectRatio，
-    // 宽度与圆角取与高度相同的计算值：widget 高度 - 外层上下 padding - 胶囊上下边距(12dp × 2)
-    val avatarSize = (LocalSize.current.height - OUTER_VERTICAL_PADDING * 2 - AVATAR_EDGE_MARGIN * 2)
+    // 头像边长（正方形）：在胶囊内容高度基础上再上下各收进 2dp，
+    // 保持头像左边缘、胶囊尺寸和文字大小不变。
+    val avatarSize = (
+        LocalSize.current.height
+            - OUTER_VERTICAL_PADDING * 2
+            - AVATAR_EDGE_MARGIN * 2
+            - AVATAR_VISUAL_INSET * 2
+        )
         .coerceAtLeast(1.dp)
     // 字号自适应：不再写死 fontSize，每行可用高度 = (文字区域高度 - 上下边距 - 两行间距) / 2，
     // 字号取行高的约 85%（行高 ≈ 字号 × 1.17），使文字高度正好填满每行的可用最大高度。
@@ -315,14 +325,14 @@ fun MediumWidgetLayout(
             verticalAlignment = Alignment.CenterVertically,
             horizontalAlignment = Alignment.Start,
         ) {
-            // ── 左侧：圆形头像图片（尺寸自适应，边长 = 胶囊内容高度，正好填满 12dp 边距内的空间）──
+            // ── 左侧：圆形头像，在胶囊内容区中垂直居中──
             if (customBitmap != null) {
                 Image(
                     provider = ImageProvider(customBitmap),
                     contentDescription = "自定义头像",
                     contentScale = ContentScale.Crop,
                     modifier = GlanceModifier
-                        .fillMaxHeight()
+                        .height(avatarSize)
                         .width(avatarSize)
                         .cornerRadius(avatarSize / 2),
                 )
@@ -332,13 +342,13 @@ fun MediumWidgetLayout(
                     contentDescription = "默认头像",
                     contentScale = ContentScale.Crop,
                     modifier = GlanceModifier
-                        .fillMaxHeight()
+                        .height(avatarSize)
                         .width(avatarSize)
                         .cornerRadius(avatarSize / 2),
                 )
             }
 
-            Spacer(modifier = GlanceModifier.width(10.dp))
+            Spacer(modifier = GlanceModifier.width(8.dp))
 
             // ── 右侧：日期文字（两行作为整体，与图片区域垂直居中对齐，上下各留 6dp）──
             Column(
@@ -360,7 +370,7 @@ fun MediumWidgetLayout(
                     maxLines = 1,
                 )
 
-                Spacer(modifier = GlanceModifier.height(TEXT_LINE_SPACING))
+                //Spacer(modifier = GlanceModifier.height(TEXT_LINE_SPACING))
 
                 // 第二行：lunarDate
                 Text(
@@ -388,9 +398,13 @@ fun MaxWidgetLayout(
     customBitmap: Bitmap?,
     modifier: GlanceModifier = GlanceModifier
 ) {
-    // 头像边长（正方形）：高度由 fillMaxHeight 动态填满；Glance 无 aspectRatio，
-    // 宽度与圆角取与高度相同的计算值：widget 高度 - 外层上下 padding - 胶囊上下边距(12dp × 2)
-    val avatarSize = (LocalSize.current.height - OUTER_VERTICAL_PADDING * 2 - AVATAR_EDGE_MARGIN * 2)
+    // 头像边长（正方形）：在胶囊内容高度基础上再上下各收进 2dp。
+    val avatarSize = (
+        LocalSize.current.height
+            - OUTER_VERTICAL_PADDING * 2
+            - AVATAR_EDGE_MARGIN * 2
+            - AVATAR_VISUAL_INSET * 2
+        )
         .coerceAtLeast(1.dp)
     // 字号自适应：不再写死 fontSize，每行可用高度 = (文字区域高度 - 上下边距 - 两行间距) / 2，
     // 字号取行高的约 85%（行高 ≈ 字号 × 1.17），使文字高度正好填满每行的可用最大高度。
@@ -433,14 +447,14 @@ fun MaxWidgetLayout(
             verticalAlignment = Alignment.CenterVertically,
             horizontalAlignment = Alignment.Start,
         ) {
-            // ── 左侧：圆形头像图片（尺寸自适应，边长 = 胶囊内容高度，正好填满 12dp 边距内的空间）──
+            // ── 左侧：圆形头像，在胶囊内容区中垂直居中──
             if (customBitmap != null) {
                 Image(
                     provider = ImageProvider(customBitmap),
                     contentDescription = "自定义头像",
                     contentScale = ContentScale.Crop,
                     modifier = GlanceModifier
-                        .fillMaxHeight()
+                        .height(avatarSize)
                         .width(avatarSize)
                         .cornerRadius(avatarSize / 2),
                 )
@@ -450,7 +464,7 @@ fun MaxWidgetLayout(
                     contentDescription = "默认头像",
                     contentScale = ContentScale.Crop,
                     modifier = GlanceModifier
-                        .fillMaxHeight()
+                        .height(avatarSize)
                         .width(avatarSize)
                         .cornerRadius(avatarSize / 2),
                 )
