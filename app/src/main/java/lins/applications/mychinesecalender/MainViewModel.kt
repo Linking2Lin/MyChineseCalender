@@ -13,6 +13,7 @@ import kotlinx.coroutines.withContext
 import lins.applications.appwidget.data.ChineseCalenderRepository
 import lins.applications.appwidget.data.HkoRepository
 import lins.libs.module_base.Constants
+import lins.libs.module_base.Logger
 import lins.libs.module_base.database.AppDataBase
 import lins.libs.module_base.model.CHNDate
 import lins.libs.module_base.model.CHNDateEntity
@@ -24,6 +25,10 @@ import java.time.LocalDate
 import java.util.Calendar
 
 class MainViewModel() : ViewModel() {
+
+    companion object {
+        private const val TAG = "MainViewModel"
+    }
 
     // 用 StateFlow 保存主页面的“传统农历/黄历数据”。
     // 这样 UI 可以通过 collect 订阅状态变化，而不是手动调用刷新。
@@ -119,7 +124,7 @@ class MainViewModel() : ViewModel() {
     }
 
     private fun CHNDate.isValid(): Boolean {
-        return year != null || lunarDate != null || huangLiDate != null || huiLiDate != null || ganZhiDate != null || wuXing != null || zhiRiXingShen != null || yi != null || ji != null
+        return asList().any { !it.isNullOrBlank() }
     }
 
     /**
@@ -131,10 +136,18 @@ class MainViewModel() : ViewModel() {
      */
     fun getLunarDate(
         applicationContext: Context,
-        after: () -> Unit
+        after: () -> Unit = {}
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             try {
+                val db = AppDataBase.getInstance(applicationContext)
+
+                // 先显示最近一次有效缓存，避免冷启动或弱网时主页完全为空。
+                val cached = db.chnDateDao().getLast()?.toModel()
+                if (cached != null && cached.isValid()) {
+                    _lunarDate.value = cached
+                }
+
                 val repository = ChineseCalenderRepository()
                 val calendar = Calendar.getInstance()
                 val result = repository.getLunarDate(
@@ -142,10 +155,16 @@ class MainViewModel() : ViewModel() {
                     currentMonth = (calendar.get(Calendar.MONTH) + 1).toString(),
                     currentDay = calendar.get(Calendar.DAY_OF_MONTH).toString()
                 )
-                val db = AppDataBase.getInstance(applicationContext)
 
-                db.chnDateDao().insertDate(CHNDateEntity.convert(result))
-                _lunarDate.value = result
+                // 空响应不覆盖有效缓存，也不写入数据库。
+                if (result.isValid()) {
+                    db.chnDateDao().insertDate(CHNDateEntity.convert(result))
+                    _lunarDate.value = result
+                } else {
+                    Logger.e(TAG, "getLunarDate returned empty data")
+                }
+            } catch (e: Exception) {
+                Logger.e(TAG, "getLunarDate failed", e)
             } finally {
                 withContext(Dispatchers.Main) { after() }
             }

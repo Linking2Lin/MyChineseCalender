@@ -48,8 +48,9 @@ class ChineseCalenderRepository {
                 )
                 Logger.d(TAG, "getLunarDate: $dataString")
                 Json.decodeFromString<CHNDate>(dataString)
+            }.onFailure { e ->
+                Logger.e(TAG, "getLunarDate request or parsing failed", e)
             }.getOrNull() ?: CHNDate()
         }
     }
 }
-

@@ -37,8 +37,9 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // 启动时先加载“今天的农历”和“今日诗词”。
+        // 启动时加载主页完整黄历、Widget 农历缓存和今日诗词。
         // 这里传 applicationContext 是为了避免把 Activity Context 长时间传到后台对象中。
+        viewModel.getLunarDate(applicationContext)
         viewModel.getTodayLunarInfo(applicationContext)
         viewModel.fetchPoem(applicationContext)
 

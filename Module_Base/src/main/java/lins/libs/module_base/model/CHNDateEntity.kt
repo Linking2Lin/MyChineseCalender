@@ -17,6 +17,20 @@ data class CHNDateEntity(
     @ColumnInfo(name = "yi") val yi: String?,
     @ColumnInfo(name = "ji") val ji: String?,
 ){
+    fun toModel(): CHNDate {
+        return CHNDate(
+            year = year,
+            lunarDate = lunarDate,
+            huangLiDate = huangLiDate,
+            huiLiDate = huiLiDate,
+            ganZhiDate = ganZhiDate,
+            wuXing = wuXing,
+            zhiRiXingShen = zhiRiXingShen,
+            yi = yi,
+            ji = ji
+        )
+    }
+
     companion object {
         fun convert(chnDate: CHNDate) : CHNDateEntity{
             return CHNDateEntity(
