@@ -94,8 +94,8 @@ class MyAppWidget : GlanceAppWidget() {
 
     companion object {
         val SMALL_SQUARE = DpSize(50.dp, 50.dp)
-        // 中/大尺寸高度取 100dp：两行 22sp 文字 + 头像 12dp 上下边距需要约 90dp，
-        // 100dp 时自适应头像 ≈ 60dp（60 + 24 + 16 = 100）。
+        // 中/大尺寸高度取 100dp：胶囊外上下各 8dp，内部上下各 10dp。
+        // 100dp 时自适应头像 ≈ 61dp（61 + 20 + 16 + 3 = 100）。
         val HORIZONTAL_RECTANGLE = DpSize(100.dp, 100.dp)
         val BIG_SQUARE = DpSize(250.dp, 100.dp)
 
@@ -165,24 +165,30 @@ fun getCircleBitmap(bitmap: Bitmap): Bitmap {
 // ────────────────────────────────────────────────────────────────
 
 /**
- * 外层透明容器的垂直 padding（上下各 6dp）。
+ * 外层透明容器的垂直 padding（上下各 8dp）。
  * 头像的自适应计算需要扣除它，因此抽成常量与 padding 保持同步。
  */
-private val OUTER_VERTICAL_PADDING = 6.dp
+private val OUTER_VERTICAL_PADDING = 8.dp
 
 /**
- * 胶囊内容区的固定边距：四边各 12dp。
- * Glance 的 padding 是 View 内边距（缩小内容而不是撑大外层），
- * 因此 12dp 边距以胶囊的内边距实现；头像在该内容区内另外收进。
+ * 胶囊内容区的上下边距。外边距增加 2dp 的同时，这里减少 2dp，
+ * 使胶囊背景变矮，但头像和文字的可用内容高度保持不变。
  */
-private val AVATAR_EDGE_MARGIN = 12.dp
+private val CONTENT_VERTICAL_MARGIN = 10.dp
 
 /**
- * 头像在胶囊内容区中额外收缩的垂直边距（上下各 2dp）。
- * 不改变胶囊和文字的尺寸，只将头像直径缩小 4dp；
- * 头像左边缘保持不变，右侧文字会随之左移 4dp。
+ * 左侧内容边距单独减少 2dp，使头像和文字与上方 Widget 对齐。
  */
-private val AVATAR_VISUAL_INSET = 2.dp
+private val CONTENT_START_MARGIN = 10.dp
+
+/** 胶囊内容区右边距，保持原有水平布局。 */
+private val CONTENT_END_MARGIN = 12.dp
+
+/**
+ * 头像在胶囊内容区中额外收缩的垂直边距（上下各 1.5dp）。
+ * 不改变胶囊和文字尺寸，头像直径比内容区小 3dp。
+ */
+private val AVATAR_VISUAL_INSET = 1.5.dp
 
 /**
  * 文字区域上/下边距（各 6dp），字号自适应计算需要扣除它。
@@ -275,12 +281,11 @@ fun MediumWidgetLayout(
     customBitmap: Bitmap?,
     modifier: GlanceModifier = GlanceModifier
 ) {
-    // 头像边长（正方形）：在胶囊内容高度基础上再上下各收进 2dp，
-    // 保持头像左边缘、胶囊尺寸和文字大小不变。
+    // 头像边长（正方形）：在胶囊内容高度基础上再上下各收进 1.5dp。
     val avatarSize = (
         LocalSize.current.height
             - OUTER_VERTICAL_PADDING * 2
-            - AVATAR_EDGE_MARGIN * 2
+            - CONTENT_VERTICAL_MARGIN * 2
             - AVATAR_VISUAL_INSET * 2
         )
         .coerceAtLeast(1.dp)
@@ -289,7 +294,7 @@ fun MediumWidgetLayout(
     val textLineHeight = (
         LocalSize.current.height
             - OUTER_VERTICAL_PADDING * 2
-            - AVATAR_EDGE_MARGIN * 2
+            - CONTENT_VERTICAL_MARGIN * 2
             - TEXT_AREA_VERTICAL_PADDING * 2
             - TEXT_LINE_SPACING
         ) / 2
@@ -313,13 +318,12 @@ fun MediumWidgetLayout(
                 // 由于 Glance 暂不支持直接传入 Compose Brush 来绘制渐变，
                 // 我们通过一个带有 gradient 渐变的 XML drawable 来实现渐变效果。
                 .background(ImageProvider(R.drawable.widget_gradient_background))
-                // 头像的 12dp 边距放在胶囊上：Glance 的 padding 是 View 内边距，
-                // 若放在图片上会把图片内容缩小（而不是撑大外层），导致图片变小。
+                // 分别控制水平和垂直边距，使胶囊收紧时不改变头像和文字大小。
                 .padding(
-                    start = AVATAR_EDGE_MARGIN,
-                    top = AVATAR_EDGE_MARGIN,
-                    end = AVATAR_EDGE_MARGIN,
-                    bottom = AVATAR_EDGE_MARGIN
+                    start = CONTENT_START_MARGIN,
+                    top = CONTENT_VERTICAL_MARGIN,
+                    end = CONTENT_END_MARGIN,
+                    bottom = CONTENT_VERTICAL_MARGIN
                 )
                 .clickable(actionRunCallback<RefreshAction>()),
             verticalAlignment = Alignment.CenterVertically,
@@ -398,11 +402,11 @@ fun MaxWidgetLayout(
     customBitmap: Bitmap?,
     modifier: GlanceModifier = GlanceModifier
 ) {
-    // 头像边长（正方形）：在胶囊内容高度基础上再上下各收进 2dp。
+    // 头像边长（正方形）：在胶囊内容高度基础上再上下各收进 1.5dp。
     val avatarSize = (
         LocalSize.current.height
             - OUTER_VERTICAL_PADDING * 2
-            - AVATAR_EDGE_MARGIN * 2
+            - CONTENT_VERTICAL_MARGIN * 2
             - AVATAR_VISUAL_INSET * 2
         )
         .coerceAtLeast(1.dp)
@@ -411,7 +415,7 @@ fun MaxWidgetLayout(
     val textLineHeight = (
         LocalSize.current.height
             - OUTER_VERTICAL_PADDING * 2
-            - AVATAR_EDGE_MARGIN * 2
+            - CONTENT_VERTICAL_MARGIN * 2
             - TEXT_AREA_VERTICAL_PADDING * 2
             - TEXT_LINE_SPACING
         ) / 2
@@ -435,13 +439,12 @@ fun MaxWidgetLayout(
                 // 由于 Glance 暂不支持直接传入 Compose Brush 来绘制渐变，
                 // 我们通过一个带有 gradient 渐变的 XML drawable 来实现渐变效果。
                 .background(ImageProvider(R.drawable.widget_gradient_background))
-                // 头像的 12dp 边距放在胶囊上：Glance 的 padding 是 View 内边距，
-                // 若放在图片上会把图片内容缩小（而不是撑大外层），导致图片变小。
+                // 分别控制水平和垂直边距，使胶囊收紧时不改变头像和文字大小。
                 .padding(
-                    start = AVATAR_EDGE_MARGIN,
-                    top = AVATAR_EDGE_MARGIN,
-                    end = AVATAR_EDGE_MARGIN,
-                    bottom = AVATAR_EDGE_MARGIN
+                    start = CONTENT_START_MARGIN,
+                    top = CONTENT_VERTICAL_MARGIN,
+                    end = CONTENT_END_MARGIN,
+                    bottom = CONTENT_VERTICAL_MARGIN
                 )
                 .clickable(actionRunCallback<RefreshAction>()),
             verticalAlignment = Alignment.CenterVertically,
