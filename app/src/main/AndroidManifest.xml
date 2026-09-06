@@ -2,7 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- 重启后恢复已有小组件调度；午夜使用非精确闹钟，不声明精确闹钟特殊权限。 -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!-- App 负责动态日期广播与任务恢复；不依赖用户先打开 MainActivity。 -->
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -26,8 +29,9 @@
             </intent-filter>
         </activity>
 
+        <!-- 保留 Glance 标准接收器入口；布局与缩放配置通过 provider XML 暴露给桌面。 -->
         <receiver android:name="lins.applications.appwidget.MyAppWidgetReceiver"
-            android:exported="true"
+            android:exported="false"
             >
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -37,10 +41,16 @@
                 android:resource="@xml/my_app_widget_info" />
         </receiver>
 
+        <!--
+            时间/时区/开机/应用更新事件只用于安排持久任务，接收器内部不等待网络。
+            DATE_CHANGED 在 App 中动态注册；ROLLOVER 使用显式 PendingIntent，无需 intent-filter。
+        -->
         <receiver android:name="lins.applications.appwidget.receiver.DateChangeReceiver"
-            android:exported="true">
+            android:exported="false">
             <intent-filter>
-                <action android:name="android.intent.action.DATE_CHANGED"/>
+                <action android:name="android.intent.action.TIME_SET"/>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED"/>
                 <action android:name="android.intent.action.TIMEZONE_CHANGED"/>
             </intent-filter>
         </receiver>

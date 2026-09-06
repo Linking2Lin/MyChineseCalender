@@ -1,3 +1,4 @@
+// 基础库：共享网络、按日仓库、Room 模型/DAO/迁移和日志，不依赖上层页面或小组件。
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.serialization)
@@ -9,7 +10,7 @@ android {
     compileSdk = 37
 
     defaultConfig {
-        minSdk = 24
+        minSdk = 31
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
@@ -39,6 +40,7 @@ dependencies {
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 
@@ -63,4 +65,9 @@ dependencies {
 
     // Coroutines（上层模块使用协程调度）
     api(libs.kotlinx.coroutines.android)
+}
+
+ksp {
+    // Schema 应纳入版本控制供审查迁移；由 Room/KSP 生成，不能用手工改 JSON 替代真实迁移。
+    arg("room.schemaLocation", "$projectDir/schemas")
 }

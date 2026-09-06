@@ -6,7 +6,7 @@ import kotlinx.serialization.Serializable
  * 今日诗词接口的顶层响应模型。
  *
  * `status` 用来表示接口层状态；`data` 是真正展示在 UI 上的诗词内容；
- * `token` 则是服务端返回的用户 token，供后续请求继续使用。
+ * `token` 保留接口可能返回的字段，当前仓库不使用它更新 Token；持久 Token 来自独立 token 接口。
  */
 @Serializable
 data class PoemResponse(
@@ -14,6 +14,7 @@ data class PoemResponse(
     val data: PoemData? = null,
     val token: String? = null
 ) {
+    /** HTTP 成功之外还需检查业务成功与正文非空；出处和翻译缺省不影响卡片展示。 */
     fun isUsable(): Boolean = status == "success" && !data?.content.isNullOrBlank()
 }
 

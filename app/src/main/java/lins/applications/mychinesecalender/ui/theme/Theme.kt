@@ -10,6 +10,7 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
+// 关闭 dynamicColor 时使用固定色板；两个色板分别适用于深色和浅色背景。
 private val DarkColorScheme = darkColorScheme(
     primary = Purple80,
     secondary = PurpleGrey80,
@@ -21,21 +22,17 @@ private val LightColorScheme = lightColorScheme(
     secondary = PurpleGrey40,
     tertiary = Pink40
 
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+    // 未显式指定的语义色使用 Material3 默认值；扩展配色应成对核对背景与对应 on* 前景色。
 )
 
+/**
+ * 页面主题默认跟随系统深浅色与 Android 12+ 壁纸动态色；可关闭动态色检查固定色板。
+ * 此处只作用于 Compose 页面，小组件由自己的 GlanceTheme 提供颜色。
+ */
 @Composable
 fun MyChineseCalendarTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
+    // 项目最低支持 Android 12，仍保留平台判断以清晰表达动态色 API 的使用边界。
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {

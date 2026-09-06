@@ -12,6 +12,8 @@ import kotlinx.serialization.Serializable
  *
  * 之所以单独维护这个模型，是为了让 widget 和缓存层只依赖最小必要字段，
  * 降低后续接口变化带来的影响。
+ * 默认空字符串用于容忍缺字段的解析，仓库仍会拒绝任何核心字段为空的响应；
+ * 此模型不包含公历日期，不能单独用它判断所属日期。
  */
 @Serializable
 data class LunarDateResponse(

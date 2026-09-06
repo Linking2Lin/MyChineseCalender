@@ -3,39 +3,20 @@ package lins.applications.appwidget.receiver
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.launch
-import lins.applications.appwidget.helper.WidgetDataSyncHelper
-import lins.libs.module_base.Logger
-
-private const val TAG = "DateChangeReceiver"
+import lins.applications.appwidget.helper.WidgetScheduler
 
 /**
- * 系统广播接收器：监听日期切换和时区变化。
- *
- * 当系统日期变化或用户切换时区时，widget 也应该尽快同步到新的“今天”。
- * 这里使用 goAsync() 是因为同步操作会涉及网络/数据库，不能在主线程里直接做。
+ * 日期、时间、时区和恢复事件的统一入口，只重新安排任务，不在广播生命周期里等待网络。
+ * DATE_CHANGED 由 App 动态注册；其余系统事件在主模块 Manifest 注册，ROLLOVER 为显式闹钟。
+ * 新增触发事件时需同时核对这里的白名单和对应注册入口。
  */
 class DateChangeReceiver : BroadcastReceiver() {
-
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
     override fun onReceive(context: Context, intent: Intent) {
-        Logger.d(TAG, "onReceive: ${intent.action}")
-
-        if (intent.action == Intent.ACTION_DATE_CHANGED
-            || intent.action == Intent.ACTION_TIMEZONE_CHANGED
-        ) {
-            val pendingResult = goAsync()
-            scope.launch {
-                try {
-                    WidgetDataSyncHelper.syncAndUpdate(context)
-                } finally {
-                    pendingResult.finish()
-                }
-            }
+        if (intent.action in setOf(Intent.ACTION_DATE_CHANGED, Intent.ACTION_TIME_CHANGED,
+                Intent.ACTION_TIMEZONE_CHANGED, Intent.ACTION_BOOT_COMPLETED,
+                Intent.ACTION_MY_PACKAGE_REPLACED, WidgetScheduler.ACTION_ROLLOVER)) {
+            WidgetScheduler.ensureScheduled(context)
+            WidgetScheduler.requestSync(context)
         }
     }
 }

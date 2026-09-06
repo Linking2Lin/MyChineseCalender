@@ -1,0 +1,106 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 4,
+    "identityHash": "646b909b34bff259c21d6ef9d6b5f14d",
+    "entities": [
+      {
+        "tableName": "chn_date",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`date` TEXT NOT NULL, `year` TEXT, `lunar_date` TEXT, `huang_li_date` TEXT, `hui_li_date` TEXT, `gan_zhi_date` TEXT, `wu_xing` TEXT, `zhi_ri_xing_shen` TEXT, `yi` TEXT, `ji` TEXT, PRIMARY KEY(`date`))",
+        "fields": [
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "year",
+            "columnName": "year",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "lunarDate",
+            "columnName": "lunar_date",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "huangLiDate",
+            "columnName": "huang_li_date",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "huiLiDate",
+            "columnName": "hui_li_date",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "ganZhiDate",
+            "columnName": "gan_zhi_date",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "wuXing",
+            "columnName": "wu_xing",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "zhiRiXingShen",
+            "columnName": "zhi_ri_xing_shen",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "yi",
+            "columnName": "yi",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "ji",
+            "columnName": "ji",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "date"
+          ]
+        }
+      },
+      {
+        "tableName": "lunar_date",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`date` TEXT NOT NULL, `lunar_year` TEXT NOT NULL, `lunar_date` TEXT NOT NULL, PRIMARY KEY(`date`))",
+        "fields": [
+          {
+            "fieldPath": "date",
+            "columnName": "date",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lunarYear",
+            "columnName": "lunar_year",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lunarDate",
+            "columnName": "lunar_date",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "date"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '646b909b34bff259c21d6ef9d6b5f14d')"
+    ]
+  }
+}

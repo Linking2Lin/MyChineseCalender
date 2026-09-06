@@ -1,3 +1,4 @@
+// 最终应用模块：负责 APK、发布压缩、页面 Compose 及所有库模块的集成。
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -19,7 +20,9 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            // 最终 APK 统一压缩。Glance/Worker 的持久化类名与反射入口见 proguard-rules.pro。
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -46,7 +49,8 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
-    implementation(libs.androidx.material.icons.extended)
+    // 页面按生命周期收集 StateFlow，防止后台页面持续进行不必要的 UI 收集。
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(project(":Appwidget"))
     implementation(libs.glance)
 
@@ -54,6 +58,7 @@ dependencies {
     implementation(project(":Module_Poem"))
 
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

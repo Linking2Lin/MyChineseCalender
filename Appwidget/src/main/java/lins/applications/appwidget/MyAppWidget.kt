@@ -2,13 +2,10 @@ package lins.applications.appwidget
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.graphics.Canvas
-import android.graphics.Paint
-import android.graphics.PorterDuff
-import android.graphics.PorterDuffXfermode
-import android.graphics.Rect
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -39,130 +36,59 @@ import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.layout.width
 import androidx.glance.layout.wrapContentWidth
-import androidx.glance.preview.ExperimentalGlancePreviewApi
-import androidx.glance.preview.Preview
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.withContext
 import lins.applications.appwidget.action.RefreshAction
-import lins.libs.module_base.Constants
-import lins.libs.module_base.Logger
-import lins.libs.module_base.database.AppDataBase
+import lins.applications.appwidget.data.CalendarRepositories
+import lins.applications.appwidget.helper.WidgetScheduler
+import lins.libs.module_base.data.DateLoadResult
 import lins.libs.module_base.model.LunarDateResponse
-import java.io.File
-import java.time.LocalDate
-
-private const val TAG = "MyAppWidget"
+import lins.libs.module_base.time.CalendarDates
 
 /**
- * 自定义头像文件名。
- * 这个文件保存在应用内部存储中，供 widget 读取。
- */
-const val WIDGET_CUSTOM_IMAGE_FILE = "widget_custom_image.png"
-
-/**
- * Glance Widget 的主体实现。
+ * 小组件展示入口，订阅共享仓库和头像版本，不直接请求接口或写数据库。
  *
- * provideGlance 的职责是准备数据，而不是直接写 UI 逻辑：
- * - 从数据库取农历缓存
- * - 从内部存储读取自定义头像
- * - 然后把数据交给 `WidgetContent` 渲染
+ * Glance 活跃会话中的 update 不一定重新执行 provideGlance，因此不能在这里读一次数据
+ * 再把快照传入 UI；必须在 provideContent 内收集 Flow，让已有组合能收到后续刷新。
+ * 会话结束后进程内订阅也会停止，后台唤醒仍由 WidgetScheduler/WorkManager 负责。
  */
 class MyAppWidget : GlanceAppWidget() {
+    // 保留原有 Exact 模式与尺寸分支，让 LocalSize 对应桌面的实际尺寸。
+    override val sizeMode = SizeMode.Exact
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val snapshot = runCatching {
-            withContext(Dispatchers.IO) {
-                val today = LocalDate.now()
-                val dateString = today.format(Constants.DATE_FORMATTER)
-                val db = AppDataBase.getInstance(context)
-                val date = db.lunarDateDao().getByDate(dateString)?.toResponse()
-                    ?: db.lunarDateDao().getLast()?.toResponse()
-                val customBitmap = loadCustomImage(context)
-                date to customBitmap
+        val repository = CalendarRepositories.get(context).lunar
+        // 日期变化时取消旧日期订阅；即使旧请求稍后完成，也不会把结果绑定到新的一天。
+        val dates = CalendarDates.changes().flatMapLatest { date -> repository.observe(date) }
+            .onEach { state ->
+                // 只在尚未加载的空态自动触发；已有失败由点击或后台任务重试，避免观察流反复请求。
+                if (state.data == null && !state.loading && state.error == null) WidgetScheduler.requestSync(context)
             }
-        }.onFailure { e ->
-            Logger.e(TAG, "provideGlance: error loading data", e)
-        }.getOrNull()
-
+        // 头像版本只表示“文件可能变化”；解码移到 IO，避免阻塞组合和交互。
+        val images = WidgetImages.revision.map { withContext(Dispatchers.IO) { WidgetImages.load(context) } }
         provideContent {
-            WidgetContent(snapshot?.first, snapshot?.second)
+            // remember 保持重组期间使用同一个流；Flow 的更新由 collectAsState 转为组合状态。
+            val state by remember { dates }.collectAsState(DateLoadResult<LunarDateResponse>(CalendarDates.today()))
+            val bitmap by remember { images }.collectAsState(null)
+            WidgetContent(state.data, bitmap)
         }
     }
 
     companion object {
+        // 保留用户已调好的尺寸分支；与下方原始布局一起维护，不在逻辑修复时修改视觉参数。
         val SMALL_SQUARE = DpSize(50.dp, 50.dp)
-        // 中/大尺寸高度取 100dp：胶囊外上下各 8dp，内部上下各 10dp。
-        // 100dp 时自适应头像 ≈ 61dp（61 + 20 + 16 + 3 = 100）。
         val HORIZONTAL_RECTANGLE = DpSize(100.dp, 100.dp)
         val BIG_SQUARE = DpSize(250.dp, 100.dp)
-
-        /**
-         * 从内部存储加载用户自定义的 widget 头像图片。
-         * 文件已在保存时预裁剪为圆形 PNG，这里直接解码即可。
-         * 如果不存在或读取失败则返回 null。
-         */
-        fun loadCustomImage(context: Context): Bitmap? {
-            return try {
-                val file = File(context.filesDir, WIDGET_CUSTOM_IMAGE_FILE)
-                if (file.exists()) {
-                    // 先只读取图片边界，避免把大图直接加载到内存。
-                    val options = BitmapFactory.Options().apply {
-                        inJustDecodeBounds = true
-                    }
-                    BitmapFactory.decodeFile(file.absolutePath, options)
-
-                    // 根据目标尺寸计算采样值，尽量让解码后图片接近 widget 所需大小。
-                    val maxSize = 256
-                    var inSampleSize = 1
-                    while (maxOf(options.outWidth, options.outHeight) / inSampleSize > maxSize * 2) {
-                        inSampleSize *= 2
-                    }
-
-                    val decodeOptions = BitmapFactory.Options().apply {
-                        this.inSampleSize = inSampleSize
-                    }
-                    BitmapFactory.decodeFile(file.absolutePath, decodeOptions)
-                } else null
-            } catch (e: Exception) {
-                Logger.e(TAG, "loadCustomImage failed", e)
-                null
-            }
-        }
     }
-
-    // 必须用 Exact 而不是 Responsive：
-    // Responsive 模式下 LocalSize 是「声明尺寸」，系统却按 widget 实际尺寸渲染
-    // （例如 1 格高实际约 60~80dp，而声明 100dp），导致 fillMaxHeight 的高度与
-    // width(avatarSize) 不一致，头像变成矩形；Exact 模式下 LocalSize 永远等于
-    // 实际尺寸（Android 12+ 来自 OPTION_APPWIDGET_SIZES，resize 时重新组合），
-    // fillMaxHeight 的高度 = width(avatarSize)，头像保证正方形且填满可用空间。
-    override val sizeMode = SizeMode.Exact
 }
-
-/**
- * 将 Bitmap 裁剪为正圆形，供保存图片时使用。
- */
-fun getCircleBitmap(bitmap: Bitmap): Bitmap {
-    val size = Math.min(bitmap.width, bitmap.height)
-    val output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
-    val canvas = Canvas(output)
-    val paint = Paint()
-    val rect = Rect(0, 0, size, size)
-
-    paint.isAntiAlias = true
-    canvas.drawARGB(0, 0, 0, 0)
-    canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint)
-    paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
-    canvas.drawBitmap(bitmap, rect, rect, paint)
-    return output
-}
-
-// ────────────────────────────────────────────────────────────────
-//  布局常量：头像尺寸自适应相关
-// ────────────────────────────────────────────────────────────────
 
 /**
  * 外层透明容器的垂直 padding（上下各 8dp）。
@@ -204,13 +130,17 @@ private val TEXT_LINE_SPACING = 4.dp
 //  主入口
 // ────────────────────────────────────────────────────────────────
 
+/**
+ * 保留原有尺寸分支、文字内容和布局参数。数据来自按日仓库的持续订阅，展示层不额外拼接日期。
+ * 空态仅补上刷新动作，不改变其原有文字、位置与字号；成功态沿用下方原始布局。
+ */
 @Composable
 fun WidgetContent(date: LunarDateResponse?, customBitmap: Bitmap?) {
     val size = LocalSize.current
 
     if (date == null) {
         Column(
-            modifier = GlanceModifier.fillMaxSize(),
+            modifier = GlanceModifier.fillMaxSize().clickable(actionRunCallback<RefreshAction>()),
             verticalAlignment = Alignment.CenterVertically,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
@@ -550,56 +480,5 @@ fun MaxWidgetLayout(
                     .height(1.dp)
             )
         }
-    }
-}
-
-// ────────────────────────────────────────────────────────────────
-//  Preview
-// ────────────────────────────────────────────────────────────────
-
-@OptIn(ExperimentalGlancePreviewApi::class)
-@Preview(widthDp = 410, heightDp = 100)
-@Composable
-fun PreWidgetContent() {
-    GlanceTheme {
-        WidgetContent(
-            date = LunarDateResponse(lunarYear = "丙午年，马", lunarDate = "二月初九"),
-            customBitmap = null
-        )
-    }
-}
-
-@OptIn(ExperimentalGlancePreviewApi::class)
-@Preview(widthDp = 410, heightDp = 100)
-@Composable
-fun PreMaxWidgetContent() {
-    GlanceTheme {
-        MaxWidgetLayout(
-            date = LunarDateResponse(lunarYear = "丙午年，马", lunarDate = "二月初九"),
-            customBitmap = null
-        )
-    }
-}
-
-@OptIn(ExperimentalGlancePreviewApi::class)
-@Preview(widthDp = 410, heightDp = 100)
-@Composable
-fun PreMediumWidgetContent() {
-    GlanceTheme {
-        MediumWidgetLayout(
-            date = LunarDateResponse(lunarYear = "丙午年，马", lunarDate = "二月初九"),
-            customBitmap = null
-        )
-    }
-}
-
-@OptIn(ExperimentalGlancePreviewApi::class)
-@Preview(widthDp = 150, heightDp = 100)
-@Composable
-fun PreSmallWidgetContent() {
-    GlanceTheme {
-        SmallWidgetLayout(
-            date = LunarDateResponse(lunarYear = "丙午年，马", lunarDate = "二月初九"),
-        )
     }
 }

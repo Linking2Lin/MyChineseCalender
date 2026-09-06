@@ -11,10 +11,16 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
-import lins.applications.appwidget.helper.WidgetDataSyncHelper
+import lins.applications.appwidget.helper.WidgetScheduler
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import lins.applications.mychinesecalender.ui.content.MainContent
 import lins.applications.mychinesecalender.ui.theme.MyChineseCalendarTheme
 
+/**
+ * 单页面应用入口，只负责装配 ViewModel、Compose 和前台生命周期。
+ * 数据/错误策略放在 ViewModel 与仓库，避免旋转或重新创建 Activity 时重复建立数据流程。
+ */
 class MainActivity : ComponentActivity() {
     // ViewModel 负责承载页面级状态；Activity 仅负责装配 UI 和协调少量副作用。
     // 这里使用 viewModels() 可以让 ViewModel 在配置变更（旋转屏幕、深色模式切换）时保持不被重建。
@@ -37,15 +43,16 @@ class MainActivity : ComponentActivity() {
             }
         }
 
-        // 启动时加载主页完整黄历、Widget 农历缓存和今日诗词。
-        // 这里传 applicationContext 是为了避免把 Activity Context 长时间传到后台对象中。
-        viewModel.getLunarDate(applicationContext)
-        viewModel.getTodayLunarInfo(applicationContext)
-        viewModel.fetchPoem(applicationContext)
-
-        // 启动时做一次统一同步，保证页面和 widget 使用同一份有效缓存。
+        // configure 必须在触发加载之前完成；界面初始化本身只订阅状态，不发请求。
+        viewModel.configure(applicationContext)
+        viewModel.ensurePoem()
         lifecycleScope.launch {
-            WidgetDataSyncHelper.syncAndUpdate(applicationContext)
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                // 每次前台都尝试排队组件同步；没有桌面实例时 Scheduler 会直接跳过。
+                WidgetScheduler.requestSync(applicationContext)
+                // STOPPED 时停止日期轮询；下次 STARTED 立即重新读取今天。
+                viewModel.watchDates()
+            }
         }
     }
 }

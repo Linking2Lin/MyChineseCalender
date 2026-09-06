@@ -1,4 +1,4 @@
-// Top-level build file where you can add configuration options common to all sub-projects/modules.
+// 根工程仅统一声明插件版本（实际版本见 gradle/libs.versions.toml），各模块按需应用。
 plugins {
     alias(libs.plugins.android.application) apply false
     alias(libs.plugins.kotlin.compose) apply false

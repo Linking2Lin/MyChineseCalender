@@ -19,8 +19,11 @@ private const val TAG = "RefreshAction"
  * 这个回调负责：
  * 1. 通过原子锁避免用户连续点击导致并发刷新
  * 2. 调用数据同步逻辑拉取最新农历
- * 3. 刷新对应 widget 实例
- * 4. 通过 Toast 反馈结果
+ * 3. 请求刷新全部 widget 实例，保持多个副本一致
+ * 4. 分别反馈数据、缓存和更新请求的失败
+ *
+ * Glance 通过无参构造器创建本回调，类名可能被保存到已有点击动作中，修改类名或
+ * 发布压缩规则时需考虑兼容。此处的锁只合并点击，Worker 的并发由共享仓库协调。
  */
 class RefreshAction : ActionCallback {
 
@@ -50,13 +53,19 @@ class RefreshAction : ActionCallback {
 
         try {
             // 同步成功后统一刷新所有实例，避免多副本显示不同日期。
-            val success = WidgetDataSyncHelper.syncAndUpdate(context)
+            val result = WidgetDataSyncHelper.syncAndUpdate(context, force = true)
 
             withContext(Dispatchers.Main) {
-                val message = if (success) "刷新成功 ✓" else "刷新失败，请检查网络"
+                val message = when {
+                    !result.dataReady -> "今日数据获取失败，请稍后重试"
+                    !result.cacheSaved -> "数据已获取，但保存失败"
+                    !result.updates.succeeded -> "部分组件更新失败，请重试"
+                    else -> "数据已更新"
+                }
                 Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
             }
         } finally {
+            // 包括取消在内的所有退出路径都释放点击锁，避免一次中断导致后续永远无法刷新。
             isRefreshing.set(false)
         }
     }

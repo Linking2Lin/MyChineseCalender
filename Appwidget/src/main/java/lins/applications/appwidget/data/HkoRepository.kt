@@ -1,53 +1,32 @@
 package lins.applications.appwidget.data
 
+import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.client.request.parameter
 import io.ktor.http.isSuccess
-import lins.libs.module_base.Logger
+import java.time.LocalDate
 import lins.libs.module_base.model.LunarDateResponse
 import lins.libs.module_base.network.KtorClient
 
 /**
- * @Author LinXuXu
- * @Date 2026/3/27 14:51
- * 使用香港天文台API获取公历阴历对照
+ * 香港天文台农历接口适配器，仅负责一次请求与字段完整性校验。
+ * 请求日期由调用方传入，便于切日和预取；不要在此重新读取“今天”，否则会改变请求身份。
  */
-object HkoRepository {
-    private const val TAG = "HkoRepository"
-    private val client = KtorClient.client
-
-    /**
-     * 获取指定日期的农历信息
-     * @param date 格式必须为 YYYY-MM-DD，例如 "2023-03-01"
-     */
-    suspend fun fetchLunarDate(date: String): LunarDateResponse? {
-        return try {
-            val httpResponse = client.get("https://data.weather.gov.hk/weatherAPI/opendata/lunardate.php") {
-                parameter("date", date)
-                header(
-                    "User-Agent",
-                    "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
-                )
-                header("Accept", "application/json, text/plain, */*")
-                header("Referer", "https://www.hko.gov.hk/")
-            }
-
-            if (!httpResponse.status.isSuccess()) {
-                Logger.e(TAG, "fetchLunarDate failed: HTTP ${httpResponse.status.value} for date=$date")
-                return null
-            }
-
-            val response = httpResponse.body<LunarDateResponse>()
-            if (response.lunarYear.isBlank() || response.lunarDate.isBlank()) {
-                Logger.e(TAG, "fetchLunarDate returned blank payload for date=$date")
-                return null
-            }
-            response
-        } catch (e: Exception) {
-            Logger.e(TAG, "fetchLunarDate exception for date=$date", e)
-            null
+class HkoRepository(private val client: HttpClient = KtorClient.client) {
+    /** 返回非空农历年与日期；HTTP、解析和校验异常均由上层仓库处理。 */
+    suspend fun fetchLunarDate(date: LocalDate): LunarDateResponse {
+        val response = client.get("https://data.weather.gov.hk/weatherAPI/opendata/lunardate.php") {
+            parameter("date", date.toString())
+            // 保留既有接口请求头；它们不代表应用真实运行系统，也不参与日期计算。
+            header("User-Agent", "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+            header("Accept", "application/json, text/plain, */*")
+            header("Referer", "https://www.hko.gov.hk/")
+        }
+        check(response.status.isSuccess()) { "HKO HTTP ${response.status.value}" }
+        return response.body<LunarDateResponse>().also {
+            check(it.lunarYear.isNotBlank() && it.lunarDate.isNotBlank()) { "Empty HKO response for $date" }
         }
     }
 }
