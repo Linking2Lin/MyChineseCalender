@@ -7,9 +7,12 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -30,12 +33,14 @@ class DailyRepositoryTest {
         val rows = MutableStateFlow<Map<LocalDate, String>>(emptyMap())
         var failRead = false
         var failWrite = false
+        var observeDelayMillis = 0L
         var writes = 0
         override suspend fun read(date: LocalDate): String? {
             if (failRead) throw IOException("unreadable")
             return rows.value[date]
         }
         override fun observe(date: LocalDate) = rows.map { it[date] }
+            .onStart { delay(observeDelayMillis) }
         override suspend fun write(date: LocalDate, data: String) {
             if (failWrite) throw IOException("disk full")
             writes++
@@ -80,6 +85,51 @@ class DailyRepositoryTest {
         assertEquals("valid", cache.read(today))
         assertNotNull(result.error)
         assertEquals(0, cache.writes)
+    }
+
+    // 模拟进程重建后的首次磁盘查询；首帧必须等待真实缓存，不能先用 null 覆盖桌面已有内容。
+    @Test fun firstObservationWaitsForPersistedTodayCache() = runTest {
+        val cache = Cache().apply {
+            rows.value = mapOf(today.minusDays(1) to "old", today to "valid")
+            observeDelayMillis = 100
+        }
+        var requests = 0
+        val repository = DailyRepository(cache, { requests++; "network" },
+            { data, _ -> data == "valid" }, { today }, StandardTestDispatcher(testScheduler))
+        val snapshot = async { repository.observe(today).first() }
+        runCurrent()
+        assertFalse(snapshot.isCompleted)
+        advanceTimeBy(100)
+        runCurrent()
+        assertEquals(today, snapshot.await().date)
+        assertEquals("valid", snapshot.await().data)
+        assertEquals(0, requests)
+    }
+
+    // 同日点击强刷时，订阅者在请求中与失败后都保留缓存；跨日无缓存时仍必须清空。
+    @Test fun offlineRefreshKeepsCacheInEveryObservedStateButNotAcrossDays() = runTest {
+        val cache = Cache().apply { rows.value = mapOf(today to "valid") }
+        var now = today
+        val repository = DailyRepository(cache, { delay(100); throw IOException("offline") },
+            { data, _ -> data == "valid" }, { now }, StandardTestDispatcher(testScheduler))
+        val observed = mutableListOf<DateLoadResult<String>>()
+        backgroundScope.launch { repository.observe(today).collect { observed += it } }
+        runCurrent()
+
+        val refresh = async { repository.load(today, force = true) }
+        runCurrent()
+        assertTrue(observed.last().loading)
+        advanceTimeBy(100)
+        runCurrent()
+        assertNotNull(refresh.await().error)
+        assertNotNull(observed.last().error)
+        assertFalse(observed.last().loading)
+        assertTrue(observed.all { it.date == today && it.data == "valid" })
+
+        now = today.plusDays(1)
+        val nextDay = repository.observe(now).first()
+        assertEquals(now, nextDay.date)
+        assertNull(nextDay.data)
     }
 
     // 磁盘故障不丢弃已获取数据；存储恢复后只补写缓存，不重复联网。

@@ -26,7 +26,7 @@
 - “今天”由 [CalendarDates](../Module_Base/src/main/java/lins/libs/module_base/time/CalendarDates.kt) 使用设备当前时区计算。下一天从当地日历日的起点计算，不是固定增加 24 小时。
 - `DateLoadResult.date` 是请求身份。不要以响应完成时间重新标注日期，也不要用最后一条记录兜底今天。
 - `data` 与 `error` 可以同时存在，表示刷新失败但已有同日数据。`cacheError` 表示缓存操作失败，有效网络数据仍可展示。取消异常继续传播，不作为普通错误提示。
-- `observe` 只订阅，不主动联网。内存加载状态存在时优先于数据库观察值，因此新业务写入应经过仓库，不绕过仓库直接写 DAO。
+- `observe` 只订阅，不主动联网。首值等待真实缓存查询，不预先发出空值；内存加载状态存在时优先于数据库观察值，因此新业务写入应经过仓库，不绕过仓库直接写 DAO。
 - 同一仓库的加载全程串行，普通并发请求在前一次成功后复用缓存；多个 `force` 请求并不会自动合并。页面和组件点击入口还各有重复操作保护。
 - 缓存清理发生在写入路径，保留当前日期前 7 天到后 2 天的闭区间，不是独立定时清理。改变预取范围时同步调整清理窗口。
 
@@ -38,7 +38,7 @@
 
 触发后由 [SyncDateWorker](../Appwidget/src/main/java/lins/applications/appwidget/worker/SyncDateWorker.kt) 调用 [WidgetDataSyncHelper](../Appwidget/src/main/java/lins/applications/appwidget/helper/WidgetDataSyncHelper.kt)：先请求展示本地状态 → 加载今天 → 检查请求期间是否换日 → 再请求所有组件更新 → 成功后尽力预取明天。广播只排队，不在接收窗口里等待网络。
 
-Glance 活跃会话不能依靠重复调用 `update` 一定重进 `provideGlance`。日期与头像必须在 `provideContent` 内持续收集；换日使用 `flatMapLatest` 切换日期订阅。新增状态也应进入这条可观察链路，而不是只在入口读取一次。
+Glance 活跃会话不能依靠重复调用 `update` 一定重进 `provideGlance`。新会话先读取本地头像和当天仓库首值来初始化首帧，避免点击后先显示空态；日期与头像随后仍在 `provideContent` 内持续收集，换日使用 `flatMapLatest` 切换日期订阅。新增状态也应进入这条可观察链路，而不是只在入口读取一次。
 
 `WidgetUpdateResult` 表示应用侧更新请求的结果，不代表宿主已经绘制完成。单实例失败继续处理其他实例，枚举失败单独记整体失败。系统省电、强行停止和宿主行为仍可能延迟显示，计算正确不等于零点准时刷新。
 

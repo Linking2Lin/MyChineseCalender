@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.sync.Mutex
@@ -74,12 +73,14 @@ class DailyRepository<T>(
 
     /**
      * 合并缓存初值与进程内加载状态，本方法本身不发网络请求。
+     * 首次发出前等待缓存查询完成，不把“尚未读取”当作“没有数据”。
      * 有本次加载状态时优先显示它，保留 loading/error 和尚未落盘的网络数据；因此后续
      * 业务写入应通过 load，不能绕过仓库直接写 DAO 并期待覆盖已有的内存状态。
      */
     fun observe(date: LocalDate): Flow<DateLoadResult<T>> = combine(
-        // 包裹 observe 的创建过程，连数据库打开失败也能被 catch 接住；先发空值使 UI 可立即组合。
-        flow { emitAll(cache.observe(date)) }.onStart { emit(null) }.catch { e ->
+        // 包裹 observe 的创建过程，连数据库打开失败也能被 catch 接住。
+        // 不预先发 null，否则组件会在每次重新订阅时短暂覆盖当天已有内容。
+        flow { emitAll(cache.observe(date)) }.catch { e ->
             if (e is CancellationException) throw e
             // 观察链失败不终止 results 的订阅；具体存储故障由 load 转为 cacheError。
             emit(null)

@@ -25,6 +25,15 @@ fun PreWidgetContent() {
 @OptIn(ExperimentalGlancePreviewApi::class)
 @Preview(widthDp = 410, heightDp = 100)
 @Composable
+fun PreEmptyWidgetContent() {
+    GlanceTheme {
+        WidgetContent(date = null, customBitmap = null)
+    }
+}
+
+@OptIn(ExperimentalGlancePreviewApi::class)
+@Preview(widthDp = 410, heightDp = 100)
+@Composable
 fun PreMaxWidgetContent() {
     GlanceTheme {
         MaxWidgetLayout(

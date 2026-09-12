@@ -41,6 +41,7 @@ import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
@@ -48,7 +49,6 @@ import kotlinx.coroutines.withContext
 import lins.applications.appwidget.action.RefreshAction
 import lins.applications.appwidget.data.CalendarRepositories
 import lins.applications.appwidget.helper.WidgetScheduler
-import lins.libs.module_base.data.DateLoadResult
 import lins.libs.module_base.model.LunarDateResponse
 import lins.libs.module_base.time.CalendarDates
 
@@ -56,7 +56,8 @@ import lins.libs.module_base.time.CalendarDates
  * 小组件展示入口，订阅共享仓库和头像版本，不直接请求接口或写数据库。
  *
  * Glance 活跃会话中的 update 不一定重新执行 provideGlance，因此不能在这里读一次数据
- * 再把快照传入 UI；必须在 provideContent 内收集 Flow，让已有组合能收到后续刷新。
+ * 再只把快照传入 UI；首帧以本地状态初始化，之后仍须在 provideContent 内收集 Flow，
+ * 让已有组合能收到后续刷新。
  * 会话结束后进程内订阅也会停止，后台唤醒仍由 WidgetScheduler/WorkManager 负责。
  */
 class MyAppWidget : GlanceAppWidget() {
@@ -74,11 +75,17 @@ class MyAppWidget : GlanceAppWidget() {
             }
         // 头像版本只表示“文件可能变化”；解码移到 IO，避免阻塞组合和交互。
         val images = WidgetImages.revision.map { withContext(Dispatchers.IO) { WidgetImages.load(context) } }
+        // 点击可能重建 Glance 会话。先读取本地头像和当天缓存，再提交首帧，避免空态/默认头像闪烁。
+        // first 只等待本地查询，不等待网络；之后继续收集原流，接收刷新、换日与头像变化。
+        val initialBitmap = images.first()
+        val initialState = dates.first()
         provideContent {
             // remember 保持重组期间使用同一个流；Flow 的更新由 collectAsState 转为组合状态。
-            val state by remember { dates }.collectAsState(DateLoadResult<LunarDateResponse>(CalendarDates.today()))
-            val bitmap by remember { images }.collectAsState(null)
-            WidgetContent(state.data, bitmap)
+            val state by remember { dates }.collectAsState(initialState)
+            val bitmap by remember { images }.collectAsState(initialBitmap)
+            // 网络失败时 data 仍可携带当天有效缓存；没有当天数据才进入空态。
+            // 初次读取或重组期间也可能跨日，旧日期快照不能冒充今天。
+            WidgetContent(state.data.takeIf { state.date == CalendarDates.today() }, bitmap)
         }
     }
 
@@ -131,27 +138,15 @@ private val TEXT_LINE_SPACING = 4.dp
 // ────────────────────────────────────────────────────────────────
 
 /**
- * 保留原有尺寸分支、文字内容和布局参数。数据来自按日仓库的持续订阅，展示层不额外拼接日期。
- * 空态仅补上刷新动作，不改变其原有文字、位置与字号；成功态沿用下方原始布局。
+ * 数据来自按日仓库的持续订阅，失败时继续展示当天有效缓存；没有当天数据则展示空态。
+ * 空态统一复用中等布局，仅替换两行文案；有数据时保留原有尺寸分支与布局参数。
  */
 @Composable
 fun WidgetContent(date: LunarDateResponse?, customBitmap: Bitmap?) {
     val size = LocalSize.current
 
     if (date == null) {
-        Column(
-            modifier = GlanceModifier.fillMaxSize().clickable(actionRunCallback<RefreshAction>()),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                "暂无数据",
-                style = TextStyle(
-                    color = GlanceTheme.colors.onSurface,
-                    fontSize = 14.sp
-                )
-            )
-        }
+        MediumWidgetLayout(date = null, customBitmap = customBitmap)
         return
     }
 
@@ -205,9 +200,10 @@ fun SmallWidgetLayout(date: LunarDateResponse, modifier: GlanceModifier = Glance
 //  小组件 · 中等尺寸
 // ────────────────────────────────────────────────────────────────
 
+/** date 为空时仅切换两行文案，空态与正常中等布局共用头像、背景、排版和刷新动作。 */
 @Composable
 fun MediumWidgetLayout(
-    date: LunarDateResponse,
+    date: LunarDateResponse?,
     customBitmap: Bitmap?,
     modifier: GlanceModifier = GlanceModifier
 ) {
@@ -293,9 +289,9 @@ fun MediumWidgetLayout(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalAlignment = Alignment.Start,
             ) {
-                // 第一行：lunarYear
+                // 第一行：农历年，或空态固定文案。
                 Text(
-                    text = date.lunarYear,
+                    text = date?.lunarYear ?: "常能遣其欲而心自静，",
                     style = TextStyle(
                         color = GlanceTheme.colors.onSurface,
                         fontSize = textFontSize,
@@ -306,9 +302,9 @@ fun MediumWidgetLayout(
 
                 //Spacer(modifier = GlanceModifier.height(TEXT_LINE_SPACING))
 
-                // 第二行：lunarDate
+                // 第二行：农历月日，或空态固定文案。
                 Text(
-                    text = date.lunarDate,
+                    text = date?.lunarDate ?: "澄其心而神自清。",
                     style = TextStyle(
                         color = GlanceTheme.colors.onSurface,
                         fontSize = textFontSize,
