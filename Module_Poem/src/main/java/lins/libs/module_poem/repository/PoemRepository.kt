@@ -2,123 +2,142 @@ package lins.libs.module_poem.repository
 
 import android.content.Context
 import android.util.Log
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
+import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.get
 import io.ktor.client.request.header
 import io.ktor.http.isSuccess
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.Serializable
-import lins.libs.module_poem.model.PoemResponse
 import lins.libs.module_base.network.KtorClient
-
-// 顶层委托复用同一 DataStore，避免每个仓库实例为同一文件创建独立存储器。
-// 文件名和键名是已安装用户的持久化身份，改名会丢失对现有 Token 的读取。
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "jinrishici_datastore")
+import lins.libs.module_poem.model.PoemResponse
 
 /**
- * 今日诗词服务适配器：复用 Token 后获取诗句，认证拒绝时最多清理并重试一次。
+ * 今日诗词网络流程：读取/获取 Token → 请求诗句 → 认证拒绝时最多重试一次。
+ * 存储只是缓存，读写失败不阻断已经可用的 Token；取消仍向上传播。互斥范围覆盖整次请求，
+ * 防止同一个仓库的并发调用重复申请 Token 或让旧认证失败清掉刚取得的新 Token。
  *
- * 普通网络/存储/解析故障返回 null，由 ViewModel 保留旧诗词并提示失败；协程取消继续抛出。
- * 本类没有请求互斥，当前由 ViewModel 的加载标记合并点击；增加新调用入口时需重新考虑并发。
- * context 应使用 applicationContext，避免 DataStore/仓库长期持有页面。
+ * @param tokens 可注入的 Token 存储，生产使用 DataStore。
+ * @param client 共享或测试专用 HTTP 客户端；本仓库不负责关闭它。
+ * @param reportFailure 故障记录回调，禁止记录 Token 值，测试可替换为无操作函数。
  */
-class PoemRepository(private val context: Context) {
-    private val client = KtorClient.client
-    private val tokenKey = stringPreferencesKey("user_token")
+class PoemRepository internal constructor(
+    private val tokens: PoemTokenStore,
+    private val client: HttpClient,
+    private val reportFailure: (String, Exception?) -> Unit = { message, error ->
+        Log.e("PoemRepository", message, error)
+    },
+) {
+    /**
+     * 装配真实网络和存储依赖。
+     * @param context 业务入口 Context，内部只保留其 applicationContext。
+     */
+    constructor(context: Context) : this(DataStorePoemTokenStore(context), KtorClient.client)
 
-    companion object {
-        private const val TAG = "PoemRepository"
-    }
+    private val mutex = Mutex()
+    private var tokenRead = false
+    private var memoryToken: String? = null
+    private var tokenDirty = false
 
+    /** Token 接口的传输模型，只有业务成功且 data 非空才采用。 */
     @Serializable
-    private data class TokenResponse(
-        val status: String,
-        val data: String
-    )
+    private data class TokenResponse(val status: String, val data: String)
 
     /**
-     * 首选 DataStore 中非空 Token，缺失才访问 token 接口。成功后先持久化再返回。
-     * 缓存读取发生在本方法的 try 外，异常最终由 fetchPoem 的外层捕获并转为失败。
+     * 优先复用进程内 Token，首次访问才读磁盘；获取成功后先保留内存再尝试写盘。
+     * @return 可用 Token，获取失败返回 null；此时仍允许上层按原有行为尝试匿名请求。
      */
     private suspend fun getOrFetchToken(): String? {
-        val cachedToken = context.dataStore.data.map { preferences ->
-            preferences[tokenKey]
-        }.firstOrNull()
-
-        if (!cachedToken.isNullOrEmpty()) {
-            return cachedToken
-        }
-
-        return try {
-            val response = client.get("https://v2.jinrishici.com/token")
-            if (response.status.isSuccess()) {
-                val tokenRes = response.body<TokenResponse>()
-                if (tokenRes.status == "success" && tokenRes.data.isNotEmpty()) {
-                    context.dataStore.edit { preferences ->
-                        preferences[tokenKey] = tokenRes.data
-                    }
-                    tokenRes.data
-                } else {
-                    null
-                }
-            } else {
+        if (!tokenRead) {
+            // 读异常仅意味着没有可信缓存，不能让整个诗词请求提前退出。
+            memoryToken = try {
+                tokens.read()?.takeIf { it.isNotBlank() }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                reportFailure("Unable to read poem token cache", e)
                 null
             }
+            tokenRead = true
+        }
+        if (memoryToken != null) {
+            if (tokenDirty) persistToken()
+            return memoryToken
+        }
+        return try {
+            val response = client.get("https://v2.jinrishici.com/token")
+            if (!response.status.isSuccess()) return null
+            val result = response.body<TokenResponse>()
+            if (result.status != "success" || result.data.isBlank()) return null
+            memoryToken = result.data
+            tokenDirty = true
+            persistToken()
+            memoryToken
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to fetch token", e)
+            reportFailure("Unable to fetch poem token", e)
             null
         }
     }
 
     /**
-     * 请求一首可用诗词，不依赖黄历日期，也不把诗句缓存到 Room。
-     * DataStore/Ktor 自行管理挂起 IO，无需为这两种 API 再包一层 IO 调度。
-     * Token 获取失败时仍尝试不带 Token 请求；只有 HTTP 401/403 进入清 Token 的一次性重试，
-     * HTTP 成功但业务 status/content 不可用时返回 null，不进行认证重试。
+     * 尽力将内存 Token 保存到磁盘，失败保留 dirty，下一次调用可重试而不重复申请 Token。
+     * @return Unit；普通存储故障只记录，取消异常继续抛出。
      */
-    suspend fun fetchPoem(): PoemResponse? {
-        return try {
-            val token = getOrFetchToken()
-            val response = client.get("https://v2.jinrishici.com/sentence") {
-                if (!token.isNullOrEmpty()) {
-                    header("X-User-Token", token)
-                }
-            }
-            if (response.status.isSuccess()) {
-                response.body<PoemResponse>().takeIf(PoemResponse::isUsable)
-            } else if (response.status.value == 401 || response.status.value == 403) {
-                // 不递归调用 fetchPoem，确保服务端持续拒绝认证时也只有一次额外诗词请求。
-                Log.w(TAG, "Token rejected (HTTP ${response.status}), clearing and retrying")
-                context.dataStore.edit { it.remove(tokenKey) }
-                val newToken = getOrFetchToken()
-                val retryResponse = client.get("https://v2.jinrishici.com/sentence") {
-                    if (!newToken.isNullOrEmpty()) {
-                        header("X-User-Token", newToken)
-                    }
-                }
-                if (retryResponse.status.isSuccess()) {
-                    retryResponse.body<PoemResponse>().takeIf(PoemResponse::isUsable)
-                } else {
-                    Log.e(TAG, "Retry failed: HTTP ${retryResponse.status}")
-                    null
-                }
-            } else {
-                Log.e(TAG, "Failed to fetch poem: HTTP ${response.status}")
-                null
-            }
+    private suspend fun persistToken() {
+        try {
+            tokens.write(memoryToken)
+            tokenDirty = false
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.e(TAG, "Exception during fetchPoem", e)
+            reportFailure("Unable to persist poem token", e)
+        }
+    }
+
+    /**
+     * 标记认证失败 Token 不可信。即使删除磁盘缓存失败，也禁止重新读取它参与本轮重试。
+     * @return Unit；取消异常继续抛出，存储失败不阻断申请新 Token。
+     */
+    private suspend fun rejectToken() {
+        tokenRead = true
+        memoryToken = null
+        tokenDirty = true
+        persistToken()
+    }
+
+    /**
+     * 获取一首可展示的诗词；HTTP 401/403 清 Token 后最多再请求一次，避免递归无限重试。
+     * HTTP 成功但业务状态失败或正文为空时返回 null，不以 HTTP 成功冒充有数据。
+     * @return 有效 PoemResponse；普通网络/解析故障返回 null，由原有页面展示失败状态。
+     * @throws CancellationException 调用方取消时传播，不吞掉取消或启动额外重试。
+     */
+    suspend fun fetchPoem(): PoemResponse? = mutex.withLock {
+        try {
+            repeat(2) { attempt ->
+                val token = getOrFetchToken()
+                val response = client.get("https://v2.jinrishici.com/sentence") {
+                    if (!token.isNullOrBlank()) header("X-User-Token", token)
+                }
+                if (response.status.isSuccess()) {
+                    return@withLock response.body<PoemResponse>().takeIf(PoemResponse::isUsable)
+                }
+                if (response.status.value != 401 && response.status.value != 403) {
+                    reportFailure("Poem HTTP ${response.status.value}", null)
+                    return@withLock null
+                }
+                // 第二次也拒绝时清掉无效 Token，但不再发起第三次请求。
+                rejectToken()
+                if (attempt == 1) reportFailure("Poem authentication retry rejected", null)
+            }
+            null
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            reportFailure("Unable to fetch poem", e)
             null
         }
     }

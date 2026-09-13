@@ -28,6 +28,10 @@ private val LightColorScheme = lightColorScheme(
 /**
  * 页面主题默认跟随系统深浅色与 Android 12+ 壁纸动态色；可关闭动态色检查固定色板。
  * 此处只作用于 Compose 页面，小组件由自己的 GlanceTheme 提供颜色。
+ * @param darkTheme 是否使用深色主题，默认跟随系统设置。
+ * @param dynamicColor 是否使用 Android 动态配色，默认行为保持不变。
+ * @param content 使用本主题渲染的 Compose 内容回调。
+ * @return Unit；发出原有 Compose/Glance 内容，不返回业务数据或改变既有视觉参数。
  */
 @Composable
 fun MyChineseCalendarTheme(

@@ -1,6 +1,6 @@
 # 代码维护导航
 
-本文从“要改什么”定位源码。类和方法旁的中文注释描述当前实现的职责、调用顺序和边界；历史问题与本轮修复验证分别见 [审查报告](CODE_REVIEW_2026-09-06.md) 和 [修复记录](FIXES_2026-09-06.md)。修改行为时应同步更新相邻注释及相关测试，避免注释继续描述旧行为。
+本文从“要改什么”定位源码。类和方法旁的中文注释描述当前实现的职责、调用顺序和边界；本轮排查与验证见 [2026-09-13 审查及修复报告](REVIEW_AND_FIXES_2026-09-13.md)，此前记录见 [2026-09-06 审查报告](CODE_REVIEW_2026-09-06.md) 和 [修复记录](FIXES_2026-09-06.md)。修改行为时应同步更新相邻注释及相关测试，避免注释继续描述旧行为。函数注释使用 `@param` 说明入参、`@return` 说明结果或副作用，函数内部注释解释关键顺序、失败处理和边界。
 
 ## 1. 从这些入口阅读
 
@@ -19,16 +19,17 @@
 
 主页和小组件的数据来源不同，分别是完整黄历与 HKO 轻量农历，由 [CalendarRepositories](../Appwidget/src/main/java/lins/applications/appwidget/data/CalendarRepositories.kt) 装配成两份共享的 [DailyRepository](../Module_Base/src/main/java/lins/libs/module_base/data/DailyRepository.kt)。它们共用加载流程，但各有互斥锁与状态表。
 
-普通加载路径为：精确读取指定日缓存 → 尝试复用同日内存结果 → 必要时联网 → 校验 → 写库/清理 → 发布状态。强制刷新会尝试联网；请求失败时仍保留原先有效的同日数据。
+普通加载先精确读取指定日磁盘缓存，再选择有效的同日内存结果；没有内存结果才采用磁盘值。这样上次写盘失败时，较旧的磁盘值不会覆盖已展示的新数据。有有效数据就按需补写或重试清理；没有时才联网、校验、写库并发布状态。强制刷新会尝试联网；请求失败时仍保留原先有效的同日数据。
 
 维护这条链路时保留以下约定：
 
 - “今天”由 [CalendarDates](../Module_Base/src/main/java/lins/libs/module_base/time/CalendarDates.kt) 使用设备当前时区计算。下一天从当地日历日的起点计算，不是固定增加 24 小时。
 - `DateLoadResult.date` 是请求身份。不要以响应完成时间重新标注日期，也不要用最后一条记录兜底今天。
 - `data` 与 `error` 可以同时存在，表示刷新失败但已有同日数据。`cacheError` 表示缓存操作失败，有效网络数据仍可展示。取消异常继续传播，不作为普通错误提示。
-- `observe` 只订阅，不主动联网。首值等待真实缓存查询，不预先发出空值；内存加载状态存在时优先于数据库观察值，因此新业务写入应经过仓库，不绕过仓库直接写 DAO。
-- 同一仓库的加载全程串行，普通并发请求在前一次成功后复用缓存；多个 `force` 请求并不会自动合并。页面和组件点击入口还各有重复操作保护。
-- 缓存清理发生在写入路径，保留当前日期前 7 天到后 2 天的闭区间，不是独立定时清理。改变预取范围时同步调整清理窗口。
+- `observe` 只订阅，不主动联网。没有内存状态时，首值等待真实缓存查询，不预先发出空值；已有内存状态时直接发出，避免慢磁盘阻塞已知内容。内存加载状态优先于数据库观察值，因此新业务写入应经过仓库，不绕过仓库直接写 DAO。重复状态会被过滤，其他日期更新不触发本日的无效通知。
+- 每个仓库使用固定的 32 个日期分组锁。同日加载串行，普通并发请求在前一次成功后复用缓存；相邻日期可独立加载，明日预取不会占用今天的锁。不同日期哈希碰撞只会排队，不会产生并发写入同日的风险；状态表通过原子更新合并。多个 `force` 请求并不会自动合并。页面和组件点击入口还各有重复操作保护。
+- 写库和清理共同构成可重试的持久化步骤。全部完成后才移除进程内的待处理标记；失败或取消后，下次普通加载可继续补写/清理，不必再请求网络。已取得有效新数据后在持久化阶段取消，会保留新数据并继续向上传播取消异常。
+- 缓存清理发生在写入或补写路径，保留当前日期前 7 天到后 2 天的闭区间，不是独立定时清理。改变预取范围时同步调整清理窗口。待处理标记不跨进程保存，应用重启后的数据恢复依赖实际磁盘缓存及后续加载。
 
 完整黄历要求公历字段能解析且等于请求日、农历非空，宜忌可缺省。HKO 没有可对照的公历字段，日期身份来自请求参数，只能检查农历核心字段完整。新增接口字段或更换数据源时，检查 [模型校验](../Module_Base/src/main/java/lins/libs/module_base/model/CHNDate.kt)、[统一 JSON 配置](../Module_Base/src/main/java/lins/libs/module_base/network/NetworkJson.kt) 和两个网络适配器，不能把“JSON 解析成功”当成业务成功。
 
@@ -42,7 +43,7 @@ Glance 活跃会话不能依靠重复调用 `update` 一定重进 `provideGlance
 
 `WidgetUpdateResult` 表示应用侧更新请求的结果，不代表宿主已经绘制完成。单实例失败继续处理其他实例，枚举失败单独记整体失败。系统省电、强行停止和宿主行为仍可能延迟显示，计算正确不等于零点准时刷新。
 
-小组件外观采用用户在 `09ec2be` 精调的原有布局，入口与布局常量在 [MyAppWidget](../Appwidget/src/main/java/lins/applications/appwidget/MyAppWidget.kt)，另见 [Provider 配置](../Appwidget/src/main/res/xml/my_app_widget_info.xml) 和 [Debug 预览](../Appwidget/src/debug/java/lins/applications/appwidget/WidgetPreviews.kt)。胶囊边距、头像比例、字号公式、文字顺序、对齐和尺寸分支均属于已确认的视觉设计，逻辑修复与注释维护不得顺带调整。只有用户明确要求改外观时才修改这些参数。预览源码留在 `src/debug`，其依赖不进入 Release。
+小组件外观以本轮开始时的 `f6e4fac` 为基准，其中保留此前精调布局，并已包含用户最近提交的空态行为：所有尺寸的空态复用中等布局与头像，两行文字为“常能遣其欲而心自静，”和“澄其心而神自清。”。入口与布局常量在 [MyAppWidget](../Appwidget/src/main/java/lins/applications/appwidget/MyAppWidget.kt)，另见 [Provider 配置](../Appwidget/src/main/res/xml/my_app_widget_info.xml) 和 [Debug 预览](../Appwidget/src/debug/java/lins/applications/appwidget/WidgetPreviews.kt)。胶囊边距、头像比例、字号公式、文字顺序、对齐和尺寸分支均属于已确认的视觉设计，逻辑修复与注释维护不得顺带调整。只有用户明确要求改外观时才修改这些参数。预览源码留在 `src/debug`，其依赖不进入 Release。
 
 ## 4. 头像与诗词
 
@@ -50,14 +51,18 @@ Glance 活跃会话不能依靠重复调用 `update` 一定重进 `provideGlance
 
 请求序号必须在启动后台工作前取得，代表用户真实选择顺序。编码互斥限制内存峰值，短临界区保护序号检查与最终替换。过时请求不能提交；最新请求失败保留原目标文件，不自动回退到已经淘汰的旧请求。输入位图与圆形结果由保存流程释放，正在被 Glance 使用的位图不能提前回收。这是进程内写入协调，不是后台持久任务或跨进程锁。
 
-诗词由 [PoemRepository](../Module_Poem/src/main/java/lins/libs/module_poem/repository/PoemRepository.kt) 独立处理：优先复用 DataStore Token，HTTP 401/403 时清除并最多重试一次。其他失败返回 null，由页面保留旧诗词并显示错误。响应模型中的 `token` 当前不会写回 DataStore，持久 Token 来自专门的 token 接口。新增诗词调用入口时应考虑仓库本身没有请求互斥。
+诗词由 [PoemRepository](../Module_Poem/src/main/java/lins/libs/module_poem/repository/PoemRepository.kt) 独立处理。首次读取 [PoemTokenStore](../Module_Poem/src/main/java/lins/libs/module_poem/repository/PoemTokenStore.kt) 后优先复用内存 Token；读盘失败仍可申请新 Token，写盘失败保留内存值并在下次复用时重试保存。DataStore 文件名与键名保持原有值，兼容已有安装。
+
+HTTP 401/403 时先使内存 Token 失效，再尽力删除磁盘值；删除失败也不会重新读取已被拒绝的 Token。本次诗句请求最多尝试两次，第二次仍被拒绝也会清除无效 Token。其他失败返回 null，由页面保留旧诗词并显示错误；取消异常继续传播。响应模型中的 `token` 当前不会写回 DataStore，持久 Token 来自专门的 token 接口。同一仓库实例的整次诗词请求有互斥保护，避免重复申请或误清新 Token；它不是跨进程或跨仓库实例的锁，因此业务仍应复用已有仓库实例。
 
 ## 5. 修改需求对应哪些文件与测试
 
 | 修改需求 | 重点文件 | 需要保持的验证 |
 | --- | --- | --- |
 | 更换黄历/HKO 接口或字段 | `ChineseCalenderRepository`、`HkoRepository`、模型、`NetworkJson` | `RemoteRepositoryTest`、`CalendarValidationTest`：请求参数、额外字段、错误状态、错日与残缺响应 |
-| 修改缓存优先级、保留范围 | `DailyRepository`、`CalendarRepositories`、两个 DAO | `DailyRepositoryTest`：并发、离线、跨日、落盘恢复与活跃订阅 |
+| 修改缓存优先级、保留范围 | `DailyRepository`、`CalendarRepositories`、两个 DAO | `DailyRepositoryTest`：同日与跨日并发、离线、跨日、写盘/清理失败恢复、取消与订阅首值 |
+| 修改诗词认证与存储 | `PoemRepository`、`PoemTokenStore`、`PoemResponse` | `PoemRepositoryTest`：磁盘故障、认证重试上限、并发复用、无效正文与取消 |
+| 修改 HTTP 日志 | `KtorClient`、`NetworkLogging` | `NetworkLoggingTest`：真实日志输出隐藏认证头与响应体，Release 不输出 HTTP 日志 |
 | 修改前台加载或手动刷新 | `MainActivity`、`MainViewModel`、`MainContent` | `MainViewModelTest`：换日取消、前台恢复、错误保留与数据库故障 |
 | 修改日期或后台时机 | `CalendarDates`、`WidgetScheduler`、`DateChangeReceiver`、`SyncDateWorker`、Manifest | `CalendarDatesTest`，另在设备验证时区、午夜、重启、Doze、最后一个组件删除 |
 | 修改图片处理；用户明确要求时修改布局 | `WidgetContent`、原有 Small/Medium/Max 布局、`ImageGeometry`、`WidgetImageManager`、`LatestImageWriter` | `WidgetBehaviorTest`、`LatestImageWriterTest`；图片逻辑修复应保留原有组件外观 |
@@ -83,6 +88,6 @@ Room 结构升级必须增加版本号并追加迁移，现有安装通过 `2→
 
 本地 JVM 测试通过可注入日期、虚拟协程时间、内存缓存与 MockEngine 重现边界，不访问线上接口。`DatabaseMigrationTest` 使用测试专属数据库文件并在结束后清理。当前 CI 编译仪器测试 APK，但不运行设备测试，也不能证明目标 One UI 已正确绘制。
 
-排查时先区分故障阶段：没有数据看接口/日期校验；有数据但 `cacheError` 看数据库与磁盘；仓库数据正确但组件不变化看订阅、更新请求和宿主；重启后头像/Token/任务丢失看持久化身份是否被改名。业务日志经 `Logger` 输出，日志初始化见 `MyApplication`；Debug HTTP 日志可能包含 Token，不应原样外传，Release 保持关闭请求体日志。
+排查时先区分故障阶段：没有数据看接口/日期校验；有数据但 `cacheError` 看数据库与磁盘；仓库数据正确但组件不变化看订阅、更新请求和宿主；重启后头像/Token/任务丢失看持久化身份是否被改名。业务日志经 `Logger` 输出，日志初始化见 `MyApplication`。共享客户端的 HTTP 日志由 [NetworkLogging](../Module_Base/src/main/java/lins/libs/module_base/network/NetworkLogging.kt) 配置：Debug 使用 HEADERS、不打印请求和响应正文，并隐藏 `X-User-Token`、`Authorization`、`Cookie`、`Set-Cookie`；Release 使用 NONE。业务异常日志是另外一条路径，新增日志仍应避免直接输出 Token、个人数据或完整响应。
 
 只修改注释时，可以先对照去除注释后的源码并编译；修改行为时再选择上表对应测试，避免把“编译通过”当成业务行为已经验证。

@@ -35,6 +35,13 @@ class RefreshAction : ActionCallback {
         private val isRefreshing = AtomicBoolean(false)
     }
 
+    /**
+     * Unit（挂起）；同步完成后通过原有 Toast 反馈，退出时释放点击互斥标记。
+     * @param context 调用入口的 Context；长生命周期依赖使用 applicationContext，避免持有页面。
+     * @param glanceId 触发点击的 Glance 实例标识，实际同步仍覆盖所有已登记实例。
+     * @param parameters 框架传入的点击参数；当前刷新动作不读取额外业务参数。
+     * @return Unit（挂起）；同步完成后通过原有 Toast 反馈，退出时释放点击互斥标记。
+     */
     override suspend fun onAction(
         context: Context,
         glanceId: GlanceId,

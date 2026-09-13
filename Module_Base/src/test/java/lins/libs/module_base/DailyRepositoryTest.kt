@@ -2,6 +2,8 @@ package lins.libs.module_base
 
 import java.io.IOException
 import java.time.LocalDate
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -33,6 +35,9 @@ class DailyRepositoryTest {
         val rows = MutableStateFlow<Map<LocalDate, String>>(emptyMap())
         var failRead = false
         var failWrite = false
+        var failPrune = false
+        var cancelPrune = false
+        var prunes = 0
         var observeDelayMillis = 0L
         var writes = 0
         override suspend fun read(date: LocalDate): String? {
@@ -47,6 +52,9 @@ class DailyRepositoryTest {
             rows.value += date to data
         }
         override suspend fun prune(before: LocalDate, after: LocalDate) {
+            prunes++
+            if (cancelPrune) throw CancellationException("cancel during cleanup")
+            if (failPrune) throw IOException("cleanup failed")
             rows.value = rows.value.filterKeys { it >= before && it <= after }
         }
     }
@@ -198,5 +206,76 @@ class DailyRepositoryTest {
         repository.load(now)
         runCurrent()
         assertEquals(now.toString(), displayed?.data)
+    }
+
+    /** 新响应未落盘时，后续普通读取和重试失败均不得退回磁盘旧值。 */
+    @Test fun newerMemorySurvivesFailedWriteAndRepairsOldDisk() = runTest {
+        val cache = Cache().apply { rows.value = mapOf(today to "old"); failWrite = true }
+        var requests = 0
+        val repository = DailyRepository(cache, { requests++; "new" }, { _, _ -> true }, { today })
+        assertEquals("new", repository.load(today, force = true).data)
+        val failedRepair = repository.load(today)
+        assertEquals("new", failedRepair.data)
+        assertNotNull(failedRepair.cacheError)
+        cache.failWrite = false
+        val repaired = repository.load(today)
+        assertEquals("new", repaired.data)
+        assertEquals("new", cache.read(today))
+        assertNull(repaired.cacheError)
+        assertEquals(1, requests)
+    }
+
+    /** 写入成功而清理失败也需要重试清理，不能因查到同日缓存就遗忘故障。 */
+    @Test fun cachedLoadRetriesFailedCleanup() = runTest {
+        val cache = Cache().apply {
+            rows.value = mapOf(today.minusDays(30) to "expired")
+            failPrune = true
+        }
+        val repository = DailyRepository(cache, { "new" }, { _, _ -> true }, { today })
+        assertNotNull(repository.load(today).cacheError)
+        cache.failPrune = false
+        assertNull(repository.load(today).cacheError)
+        assertEquals(2, cache.prunes)
+        assertFalse(cache.rows.value.containsKey(today.minusDays(30)))
+    }
+
+    /** 新数据已写入后取消清理，内存订阅仍应保留新值，随后普通读取补做清理。 */
+    @Test fun cancellationAfterWriteKeepsNewestDataAndRetriesCleanup() = runTest {
+        val cache = Cache().apply { rows.value = mapOf(today to "old"); cancelPrune = true }
+        val repository = DailyRepository(cache, { "new" }, { _, _ -> true }, { today }, StandardTestDispatcher(testScheduler))
+        try { repository.load(today, force = true); fail("Expected cancellation") }
+        catch (_: CancellationException) { }
+        assertEquals("new", cache.read(today))
+        assertEquals("new", repository.observe(today).first().data)
+        cache.cancelPrune = false
+        repository.load(today)
+        assertEquals(2, cache.prunes)
+    }
+
+    /** 已有内存结果可直接作为订阅初值，避免 Glance 重建时等待重复磁盘查询。 */
+    @Test fun knownMemoryIsEmittedBeforeSlowDiskObservation() = runTest {
+        val cache = Cache()
+        val repository = DailyRepository(cache, { "valid" }, { _, _ -> true }, { today }, StandardTestDispatcher(testScheduler))
+        repository.load(today)
+        cache.observeDelayMillis = 10_000
+        val state = async { repository.observe(today).first() }
+        runCurrent()
+        assertTrue(state.isCompleted)
+        assertEquals("valid", state.await().data)
+    }
+
+    /** 明日预取卡住时，今天的主动查询仍可完成；同日去重由既有并发测试保护。 */
+    @Test fun stalledTomorrowPrefetchDoesNotBlockToday() = runTest {
+        val started = CompletableDeferred<Unit>()
+        val repository = DailyRepository(Cache(), { date ->
+            if (date == today.plusDays(1)) { started.complete(Unit); awaitCancellation() }
+            "today"
+        }, { _, _ -> true }, { today })
+        val tomorrow = backgroundScope.launch { repository.load(today.plusDays(1)) }
+        started.await()
+        val current = async { repository.load(today) }
+        runCurrent()
+        try { assertTrue(current.isCompleted); assertEquals("today", current.await().data) }
+        finally { tomorrow.cancel() }
     }
 }

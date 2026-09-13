@@ -11,6 +11,9 @@ import lins.libs.module_base.time.CalendarDates
 /**
  * 将“今日数据有效”“缓存操作未报错”“组件更新请求未报错”分开，供 Toast 和 Worker 决策。
  * succeeded 只表示应用侧整条流程成功，不表示桌面宿主已完成绘制。
+ * @param dataReady 本次结果确属今天、有有效数据且没有网络/校验失败时为 true。
+ * @param cacheSaved 缓存操作没有返回故障时为 true，需要与 dataReady 一起判断。
+ * @param updates 最后一轮组件更新请求的结果统计。
  */
 data class WidgetSyncResult(val dataReady: Boolean, val cacheSaved: Boolean, val updates: WidgetUpdateResult) {
     val succeeded: Boolean get() = dataReady && cacheSaved && updates.succeeded
@@ -21,6 +24,8 @@ object WidgetDataSyncHelper {
     /**
      * 请求所有已登记的 Glance 实例更新，单实例失败后继续其他实例。
      * 枚举本身失败时返回 (total=0, failures=1) 作为整体失败标记，不能将 total=0 等同于成功。
+     * @param context 调用入口的 Context；长生命周期依赖使用 applicationContext，避免持有页面。
+     * @return 组件更新请求统计；枚举失败记为一次整体失败，不代表宿主已绘制完成。
      */
     suspend fun updateAllWidgets(context: Context): WidgetUpdateResult = try {
         val ids = GlanceAppWidgetManager(context).getGlanceIds(MyAppWidget::class.java)
@@ -44,6 +49,9 @@ object WidgetDataSyncHelper {
     /**
      * 先触发展示本地状态，再获取指定日数据，最后再次请求展示结果。
      * force 只影响第一次读取；请求期间跨日时，对新日期采用普通缓存优先加载。
+     * @param context 调用入口的 Context；长生命周期依赖使用 applicationContext，避免持有页面。
+     * @param force true 表示尝试强制联网；false 优先复用同日有效缓存。
+     * @return WidgetSyncResult；分别说明今日数据、缓存操作及最终更新请求是否成功。
      */
     suspend fun syncAndUpdate(context: Context, force: Boolean = false): WidgetSyncResult {
         val repository = CalendarRepositories.get(context).lunar
@@ -59,7 +67,11 @@ object WidgetDataSyncHelper {
             current.cacheError == null, updates)
     }
 
-    /** 尽力预取次日，利用普通 load 的缓存去重；失败状态不用于覆盖当天同步的返回结果。 */
+    /**
+     * 尽力预取次日，利用普通 load 的缓存去重；失败状态不用于覆盖当天同步的返回结果。
+     * @param context 调用入口的 Context；长生命周期依赖使用 applicationContext，避免持有页面。
+     * @return Unit（挂起）；尝试预取明日结果，不用其业务失败覆盖今日同步结果。
+     */
     suspend fun prefetchTomorrow(context: Context) {
         CalendarRepositories.get(context).lunar.load(CalendarDates.today().plusDays(1))
     }

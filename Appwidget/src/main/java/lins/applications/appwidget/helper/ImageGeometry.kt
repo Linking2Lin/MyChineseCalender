@@ -13,6 +13,10 @@ object ImageGeometry {
     /**
      * 按比例缩小到最长边不超过 maxSide，不放大小图。
      * 极端长宽比经整数截断后也至少保留 1 像素，避免解码器收到零尺寸。
+     * @param width 源图宽度，单位为像素，必须大于 0。
+     * @param height 源图高度，单位为像素，必须大于 0。
+     * @param maxSide 允许的最长边像素数，必须大于 0；不放大小图。
+     * @return ImageSize；保持比例、最长边受限且两个方向至少为 1 像素的目标尺寸。
      */
     fun fit(width: Int, height: Int, maxSide: Int): ImageSize {
         require(width > 0 && height > 0 && maxSide > 0)
@@ -20,7 +24,12 @@ object ImageGeometry {
         return ImageSize(max(1, (width * scale).toInt()), max(1, (height * scale).toInt()))
     }
 
-    /** 以短边为边长裁剪中心，奇数差值舍去半像素，最多相差 1 像素。 */
+    /**
+     * 以短边为边长裁剪中心，奇数差值舍去半像素，最多相差 1 像素。
+     * @param width 源图宽度，单位为像素，必须大于 0。
+     * @param height 源图高度，单位为像素，必须大于 0。
+     * @return CropSquare；源图中心正方形的左上角坐标与边长，单位为像素。
+     */
     fun centerCrop(width: Int, height: Int): CropSquare {
         require(width > 0 && height > 0)
         val size = min(width, height)

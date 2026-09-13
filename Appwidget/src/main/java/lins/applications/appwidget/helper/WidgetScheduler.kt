@@ -30,11 +30,19 @@ object WidgetScheduler {
     private const val PERIODIC = "sync_lunar_date"
     private const val IMMEDIATE = "refresh_lunar_date"
 
-    /** 用实际桌面实例判断需求，避免仅因用户打开主页就长期运行农历同步。 */
+    /**
+     * 用实际桌面实例判断需求，避免仅因用户打开主页就长期运行农历同步。
+     * @param context 调用入口的 Context；长生命周期依赖使用 applicationContext，避免持有页面。
+     * @return Boolean；true 表示系统登记了至少一个本组件实例。
+     */
     fun hasWidgets(context: Context): Boolean = AppWidgetManager.getInstance(context)
         .getAppWidgetIds(ComponentName(context, MyAppWidgetReceiver::class.java)).isNotEmpty()
 
-    /** 可重复调用；UPDATE 更新既有周期任务配置，删除最后一个实例后转为取消。 */
+    /**
+     * 可重复调用；UPDATE 更新既有周期任务配置，删除最后一个实例后转为取消。
+     * @param context 调用入口的 Context；长生命周期依赖使用 applicationContext，避免持有页面。
+     * @return Unit；更新周期任务和午夜闹钟，无实例时取消历史任务。
+     */
     fun ensureScheduled(context: Context) {
         if (!hasWidgets(context)) {
             cancel(context)
@@ -51,6 +59,8 @@ object WidgetScheduler {
     /**
      * 对密集触发的广播/订阅合并排队：KEEP 保留尚未完成的即时任务。
      * 周期与即时任务名字不同，仍可能同时触发；仓库层的 Mutex 负责串行化数据加载。
+     * @param context 调用入口的 Context；长生命周期依赖使用 applicationContext，避免持有页面。
+     * @return Unit；向 WorkManager 排队唯一即时任务，已有未完成任务时合并触发。
      */
     fun requestSync(context: Context) {
         if (hasWidgets(context)) {
@@ -60,7 +70,11 @@ object WidgetScheduler {
         }
     }
 
-    /** 重算下一次本地午夜；闹钟触发后及系统时间/时区改变后都要再次安排。 */
+    /**
+     * 重算下一次本地午夜；闹钟触发后及系统时间/时区改变后都要再次安排。
+     * @param context 调用入口的 Context；长生命周期依赖使用 applicationContext，避免持有页面。
+     * @return Unit；设置下一次本地午夜的非精确闹钟，不代表系统会准点执行。
+     */
     fun scheduleMidnight(context: Context) {
         if (hasWidgets(context)) {
             // 使用非精确闹钟，不需要“闹钟和提醒”特殊权限；Doze 下仍可能推迟执行。
@@ -70,7 +84,11 @@ object WidgetScheduler {
         }
     }
 
-    /** 停止两种唯一任务与午夜闹钟。这里只处理本小组件的任务，不取消应用其他 Work。 */
+    /**
+     * 停止两种唯一任务与午夜闹钟。这里只处理本小组件的任务，不取消应用其他 Work。
+     * @param context 调用入口的 Context；长生命周期依赖使用 applicationContext，避免持有页面。
+     * @return Unit；取消本小组件的两类唯一任务及午夜闹钟，不影响其他后台任务。
+     */
     fun cancel(context: Context) {
         WorkManager.getInstance(context).apply {
             cancelUniqueWork(PERIODIC)
@@ -80,6 +98,11 @@ object WidgetScheduler {
     }
 
     // 固定组件、action 和 requestCode，确保重设/取消指向同一个 PendingIntent。
+    /**
+     * 标识固定的不可变 PendingIntent，供设置和取消同一个午夜闹钟使用。
+     * @param context 调用入口的 Context；长生命周期依赖使用 applicationContext，避免持有页面。
+     * @return 标识固定的不可变 PendingIntent，供设置和取消同一个午夜闹钟使用。
+     */
     private fun rolloverIntent(context: Context) = PendingIntent.getBroadcast(
         context, 0, Intent(context, DateChangeReceiver::class.java).setAction(ACTION_ROLLOVER),
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,

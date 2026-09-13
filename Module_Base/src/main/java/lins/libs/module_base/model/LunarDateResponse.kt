@@ -14,6 +14,8 @@ import kotlinx.serialization.Serializable
  * 降低后续接口变化带来的影响。
  * 默认空字符串用于容忍缺字段的解析，仓库仍会拒绝任何核心字段为空的响应；
  * 此模型不包含公历日期，不能单独用它判断所属日期。
+ * @param lunarYear 农历年描述；默认空字符串只为兼容解析，不能作为有效数据保存。
+ * @param lunarDate 农历月日描述；空白值会被网络适配器和缓存转换拒绝。
  */
 @Serializable
 data class LunarDateResponse(

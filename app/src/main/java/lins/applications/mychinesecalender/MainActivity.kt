@@ -26,6 +26,11 @@ class MainActivity : ComponentActivity() {
     // 这里使用 viewModels() 可以让 ViewModel 在配置变更（旋转屏幕、深色模式切换）时保持不被重建。
     private val viewModel: MainViewModel by viewModels()
 
+    /**
+     * 完成当前生命周期初始化，后续异步结果由仓库和状态流传递。
+     * @param savedInstanceState 系统保存的页面状态；首次创建为 null，原样交给父类恢复。
+     * @return Unit；完成当前生命周期初始化，后续异步结果由仓库和状态流传递。
+     */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         // 启用沉浸式边缘布局，让内容可以延伸到系统栏下方，页面更现代。

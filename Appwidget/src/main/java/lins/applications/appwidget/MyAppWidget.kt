@@ -64,6 +64,12 @@ class MyAppWidget : GlanceAppWidget() {
     // 保留原有 Exact 模式与尺寸分支，让 LocalSize 对应桌面的实际尺寸。
     override val sizeMode = SizeMode.Exact
 
+    /**
+     * Unit（挂起）；完成初始数据准备并交给 Glance 管理内容会话，不直接返回视图。
+     * @param context 调用入口的 Context；长生命周期依赖使用 applicationContext，避免持有页面。
+     * @param id 当前 Glance 实例标识，由框架提供。
+     * @return Unit（挂起）；完成初始数据准备并交给 Glance 管理内容会话，不直接返回视图。
+     */
     @OptIn(ExperimentalCoroutinesApi::class)
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val repository = CalendarRepositories.get(context).lunar
@@ -140,6 +146,9 @@ private val TEXT_LINE_SPACING = 4.dp
 /**
  * 数据来自按日仓库的持续订阅，失败时继续展示当天有效缓存；没有当天数据则展示空态。
  * 空态统一复用中等布局，仅替换两行文案；有数据时保留原有尺寸分支与布局参数。
+ * @param date 待展示的农历模型；可空签名中的 null 采用原有空态，布局参数不变。
+ * @param customBitmap 已读取的自定义头像；null 时沿用布局原有的默认头像。
+ * @return Unit；向当前 Glance 组合发出原有尺寸分支或原有空态布局。
  */
 @Composable
 fun WidgetContent(date: LunarDateResponse?, customBitmap: Bitmap?) {
@@ -173,6 +182,12 @@ fun WidgetContent(date: LunarDateResponse?, customBitmap: Bitmap?) {
 //  小组件 · 小尺寸 — 药丸形，仅显示农历日期
 // ────────────────────────────────────────────────────────────────
 
+/**
+ * 组合原有小尺寸农历视图，尺寸、边距和文字样式不变。
+ * @param date 待展示的有效农历模型，不接受 null；文字内容沿用原有布局。
+ * @param modifier 调用方提供的布局修饰符，继续叠加原有约束，不改写既定间距和尺寸。
+ * @return Unit；组合原有小尺寸农历视图，尺寸、边距和文字样式不变。
+ */
 @Composable
 fun SmallWidgetLayout(date: LunarDateResponse, modifier: GlanceModifier = GlanceModifier) {
     Box(
@@ -200,7 +215,13 @@ fun SmallWidgetLayout(date: LunarDateResponse, modifier: GlanceModifier = Glance
 //  小组件 · 中等尺寸
 // ────────────────────────────────────────────────────────────────
 
-/** date 为空时仅切换两行文案，空态与正常中等布局共用头像、背景、排版和刷新动作。 */
+/**
+ * date 为空时仅切换两行文案，空态与正常中等布局共用头像、背景、排版和刷新动作。
+ * @param date 待展示的农历模型；可空签名中的 null 采用原有空态，布局参数不变。
+ * @param customBitmap 已读取的自定义头像；null 时沿用布局原有的默认头像。
+ * @param modifier 调用方提供的布局修饰符，继续叠加原有约束，不改写既定间距和尺寸。
+ * @return Unit；组合原有中等胶囊视图，date 为空时仅使用既有空态文案。
+ */
 @Composable
 fun MediumWidgetLayout(
     date: LunarDateResponse?,
@@ -322,6 +343,13 @@ fun MediumWidgetLayout(
 //  小组件 · 大尺寸
 // ────────────────────────────────────────────────────────────────
 
+/**
+ * 组合原有大尺寸视图；正式入口是否采用它由既有尺寸分支决定。
+ * @param date 待展示的有效农历模型，不接受 null；文字内容沿用原有布局。
+ * @param customBitmap 已读取的自定义头像；null 时沿用布局原有的默认头像。
+ * @param modifier 调用方提供的布局修饰符，继续叠加原有约束，不改写既定间距和尺寸。
+ * @return Unit；组合原有大尺寸视图；正式入口是否采用它由既有尺寸分支决定。
+ */
 @Composable
 fun MaxWidgetLayout(
     date: LunarDateResponse,

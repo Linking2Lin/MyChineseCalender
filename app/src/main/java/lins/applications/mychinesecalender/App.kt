@@ -12,6 +12,10 @@ import lins.libs.module_base.MyApplication
  * 系统可能仅为 Worker/小组件启动进程而不创建 Activity，因此调度恢复不能只写在页面里。
  */
 class App : MyApplication() {
+    /**
+     * 完成当前生命周期初始化，后续异步结果由仓库和状态流传递。
+     * @return Unit；完成当前生命周期初始化，后续异步结果由仓库和状态流传递。
+     */
     override fun onCreate() {
         super.onCreate()
         // DATE_CHANGED 使用应用生命周期的动态注册；进程不存活时依靠持久任务和闹钟唤醒。

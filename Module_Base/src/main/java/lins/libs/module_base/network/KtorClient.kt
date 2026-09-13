@@ -5,7 +5,6 @@ import io.ktor.client.engine.android.Android
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.client.plugins.logging.DEFAULT
-import io.ktor.client.plugins.logging.LogLevel
 import io.ktor.client.plugins.logging.Logger
 import io.ktor.client.plugins.logging.Logging
 import io.ktor.http.ContentType
@@ -46,9 +45,9 @@ object KtorClient {
         }
 
         install(Logging) {
-            // 调试模式记录完整请求/响应体，可能包含诗词 Token；维护 Release 时须保持关闭。
+            // Token 接口的响应正文含凭证，因此 Debug 也不输出正文；认证请求头单独脱敏。
             logger = Logger.DEFAULT
-            level = if (lins.libs.module_base.BuildConfig.DEBUG) LogLevel.BODY else LogLevel.NONE
+            configureSafeLogging(lins.libs.module_base.BuildConfig.DEBUG)
         }
 
         // 兼容把 JSON 标成 text/html 或 text/plain 的接口；真正的 HTML 错误页仍会解析失败。

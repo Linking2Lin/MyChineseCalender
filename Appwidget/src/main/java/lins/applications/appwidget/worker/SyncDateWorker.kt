@@ -9,8 +9,14 @@ import lins.applications.appwidget.helper.WidgetScheduler
 /**
  * WorkManager 持久任务入口，承接周期兜底和即时刷新。构造器由框架反射调用，
  * 类名还会被 WorkManager 保存，发布压缩规则中须保留它以兼容已有排队任务。
+ * @param context 框架提供的应用 Context，不持有 Activity。
+ * @param parameters 框架提供的任务参数，包括任务身份、运行次数等元数据。
  */
 class SyncDateWorker(context: Context, parameters: WorkerParameters) : CoroutineWorker(context, parameters) {
+    /**
+     * WorkManager Result；无组件/同步成功时成功，可恢复失败时请求退避重试。
+     * @return WorkManager Result；无组件/同步成功时成功，可恢复失败时请求退避重试。
+     */
     override suspend fun doWork(): Result {
         // 排队后用户可能已经删除所有实例，执行前再次检查，避免无意义的联网。
         if (!WidgetScheduler.hasWidgets(applicationContext)) return Result.success()

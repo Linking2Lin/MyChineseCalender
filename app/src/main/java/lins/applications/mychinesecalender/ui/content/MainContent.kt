@@ -55,6 +55,9 @@ import lins.libs.module_poem.model.PoemResponse
 /**
  * 有状态页面入口：随生命周期订阅 ViewModel，处理图片选择器，将数据与事件交给纯展示组件。
  * 不在重组期间直接刷新网络/数据库，避免频繁重组产生重复副作用。
+ * @param viewModel 页面状态与业务回调的持有者；界面只订阅数据，不在重组中直接联网。
+ * @param modifier 调用方提供的布局修饰符，继续叠加原有约束，不改写既定间距和尺寸。
+ * @return Unit；发出原有 Compose/Glance 内容，不返回业务数据或改变既有视觉参数。
  */
 @Composable
 fun MainContent(
@@ -123,6 +126,15 @@ fun MainContent(
 /**
  * 可预览的纯展示层。正式入口同时传入 data 与包含同一数据的 calendarState；默认参数只方便预览。
  * 维护时以 calendarState 判断加载/错误/可用性，不要用空 CHNDate() 表示一次成功加载。
+ * @param data 当前页面使用的黄历模型，保持现有展示字段和排版。
+ * @param poem 诗词状态，null 表示尚无可展示结果；出处字段允许缺省。
+ * @param isPoemLoading 诗词是否正在加载，用于展示原有加载态并防止重复操作。
+ * @param onRefreshPoem 请求换一首诗词的回调，不在展示组件内部实现网络逻辑。
+ * @param modifier 调用方提供的布局修饰符，继续叠加原有约束，不改写既定间距和尺寸。
+ * @param calendarState 查询日期、数据、加载和错误状态；决定原有状态提示及数据可见性。
+ * @param onRefreshCalendar 手动刷新黄历的回调，交给 ViewModel 处理重复请求和缓存策略。
+ * @param poemError 最近一次诗词请求是否失败，驱动原有错误提示。
+ * @return Unit；发出原有 Compose/Glance 内容，不返回业务数据或改变既有视觉参数。
  */
 @Composable
 fun MainContentStateless(
@@ -167,7 +179,11 @@ fun MainContentStateless(
     }
 }
 
-/** 公历/农历主卡片；农历展示字符串有空格时拆为两行，不依赖该拆分进行日期身份判断。 */
+/**
+ * 公历/农历主卡片；农历展示字符串有空格时拆为两行，不依赖该拆分进行日期身份判断。
+ * @param data 当前页面使用的黄历模型，保持现有展示字段和排版。
+ * @return Unit；发出原有 Compose/Glance 内容，不返回业务数据或改变既有视觉参数。
+ */
 @Composable
 fun MainDateCard(data: CHNDate) {
     Card(
@@ -223,7 +239,11 @@ fun MainDateCard(data: CHNDate) {
     }
 }
 
-/** 补充黄历字段；接口允许这些字段缺省，缺省行由 InfoRow 隐藏。 */
+/**
+ * 补充黄历字段；接口允许这些字段缺省，缺省行由 InfoRow 隐藏。
+ * @param data 当前页面使用的黄历模型，保持现有展示字段和排版。
+ * @return Unit；发出原有 Compose/Glance 内容，不返回业务数据或改变既有视觉参数。
+ */
 @Composable
 fun DetailInfoCard(data: CHNDate) {
     Card(
@@ -244,7 +264,12 @@ fun DetailInfoCard(data: CHNDate) {
     }
 }
 
-/** 标签固定宽度，值占剩余空间；null/空字符串不渲染该行。 */
+/**
+ * 标签固定宽度，值占剩余空间；null/空字符串不渲染该行。
+ * @param label 行左侧显示的字段名称，沿用调用方传入文字。
+ * @param value 该字段的展示值；null 或空字符串时不绘制这一行。
+ * @return Unit；发出原有 Compose/Glance 内容，不返回业务数据或改变既有视觉参数。
+ */
 @Composable
 fun InfoRow(label: String, value: String?) {
     if (value.isNullOrEmpty()) return
@@ -266,7 +291,12 @@ fun InfoRow(label: String, value: String?) {
     }
 }
 
-/** 宜忌各占一半宽度，使用共同内在高度让左右卡片底部对齐。 */
+/**
+ * 宜忌各占一半宽度，使用共同内在高度让左右卡片底部对齐。
+ * @param yi 接口返回的宜事项；缺省时沿用原有“暂无资料”展示。
+ * @param ji 接口返回的忌事项；缺省时沿用原有“暂无资料”展示。
+ * @return Unit；发出原有 Compose/Glance 内容，不返回业务数据或改变既有视觉参数。
+ */
 @Composable
 fun YiJiSection(yi: String?, ji: String?) {
     Row(
@@ -296,7 +326,16 @@ fun YiJiSection(yi: String?, ji: String?) {
     }
 }
 
-/** 缺失资料显示“暂无资料”，不能写成“无”，以免把接口缺字段解释成当天没有宜忌事项。 */
+/**
+ * 缺失资料显示“暂无资料”，不能写成“无”，以免把接口缺字段解释成当天没有宜忌事项。
+ * @param modifier 调用方提供的布局修饰符，继续叠加原有约束，不改写既定间距和尺寸。
+ * @param title 卡片标题文字，按调用方原有内容展示。
+ * @param content 卡片正文；null 或空白时使用原有缺省文案。
+ * @param containerColor 卡片背景颜色，沿用上层主题传入值。
+ * @param titleColor 标题前景颜色，沿用上层主题传入值。
+ * @param contentColor 正文前景颜色，沿用上层主题传入值。
+ * @return Unit；发出原有 Compose/Glance 内容，不返回业务数据或改变既有视觉参数。
+ */
 @Composable
 fun YiJiCard(
     modifier: Modifier = Modifier,
@@ -334,6 +373,11 @@ fun YiJiCard(
 /**
  * 整张卡片可点击换诗；加载期间禁用重复点击。错误由外层独立展示，已有诗词无需清空。
  * 接口出处允许缺省，有正文时仍可以显示；展示规则不应反过来决定缓存或 Token 行为。
+ * @param poem 诗词状态，null 表示尚无可展示结果；出处字段允许缺省。
+ * @param isLoading 是否处于加载状态，决定原有加载文字和点击可用性。
+ * @param onRefresh 卡片点击触发的刷新回调，加载期间不重复调用。
+ * @param modifier 调用方提供的布局修饰符，继续叠加原有约束，不改写既定间距和尺寸。
+ * @return Unit；发出原有 Compose/Glance 内容，不返回业务数据或改变既有视觉参数。
  */
 @Composable
 fun PoemCard(
@@ -403,7 +447,10 @@ fun PoemCard(
     }
 }
 
-/** 固定样例数据的日/夜主题预览，不创建 ViewModel，也不触发真实接口。 */
+/**
+ * 固定样例数据的日/夜主题预览，不创建 ViewModel，也不触发真实接口。
+ * @return Unit；发出原有 Compose/Glance 内容，不返回业务数据或改变既有视觉参数。
+ */
 @Preview(showBackground = true, name = "Light Mode")
 @Preview(showBackground = true, uiMode = Configuration.UI_MODE_NIGHT_YES, name = "Dark Mode")
 @Composable

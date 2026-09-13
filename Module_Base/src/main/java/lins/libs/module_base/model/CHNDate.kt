@@ -12,6 +12,15 @@ import java.time.DateTimeException
  * 对应 ChineseCalenderRepository 返回的中文字段；SerialName 属于接口契约，属性名是应用内部命名。
  * 字段默认 null 便于解析缺省资料，但“能解析”不等于“业务有效”，写库前必须调用 isValidFor。
  * year 实际是完整公历展示字符串，不是只有年份；独立查询日期保存在 CHNDateEntity.date。
+ * @param year 公历展示文本，用于核对请求日期；虽然可空，空值不能通过业务校验。
+ * @param lunarDate 农历展示文本，成功数据必须非空白。
+ * @param huangLiDate 黄历日期说明，可缺省。
+ * @param huiLiDate 回历日期说明，可缺省。
+ * @param ganZhiDate 干支年月日文本，可缺省。
+ * @param wuXing 五行纳音说明，可缺省。
+ * @param zhiRiXingShen 值日星神说明，可缺省。
+ * @param yi 宜事项原文，缺省不等于“当天没有宜事项”。
+ * @param ji 忌事项原文，缺省不等于“当天没有忌事项”。
  */
 data class CHNDate(
     @SerialName("公历日期") val year: String? = null,
@@ -24,13 +33,18 @@ data class CHNDate(
     @SerialName("宜") val yi: String? = null,
     @SerialName("忌") val ji: String? = null,
 ) {
-    /** 至少要求公历可解析且等于请求日、农历非空；宜忌等可选字段不作为有效性门槛。 */
+    /**
+     * 至少要求公历可解析且等于请求日、农历非空；宜忌等可选字段不作为有效性门槛。
+     * @param date 本次操作的公历日期，使用设备当前时区解释；不能用请求完成时的日期替换。
+     * @return Boolean；只有公历等于 date 且农历非空时返回 true。
+     */
     fun isValidFor(date: LocalDate): Boolean =
         parseGregorianDate(year) == date && !lunarDate.isNullOrBlank()
 
     /**
      * 把所有字段按顺序打包成列表。
      * 这个方法主要用于调试、遍历或测试时快速检查字段完整性。
+     * @return 按声明顺序排列的 9 个可空展示字段，不包含独立查询日期键。
      */
     fun asList(): List<String?> {
         return listOf(year, lunarDate, huangLiDate, huiLiDate, ganZhiDate, wuXing, zhiRiXingShen, yi, ji)
@@ -39,6 +53,7 @@ data class CHNDate(
     /**
      * 返回字段数量。
      * 当前和 `asList()` 保持一致，主要用于测试或结构校验。
+     * @return Int；当前展示字段列表的元素数量。
      */
     fun getLength(): Int {
         return asList().size
@@ -51,6 +66,8 @@ data class CHNDate(
         /**
          * 提取 yyyy年M月d日、yyyy-M-d 或 yyyy/M/d 前缀，再用 LocalDate 排除不存在的日期。
          * 网络校验和 v3→v4 历史迁移共用；扩展格式时须同时覆盖实时响应与历史缓存的测试。
+         * @param value 待解析的公历展示字符串；null 或无法识别的格式会被拒绝。
+         * @return LocalDate；格式或日期本身无效、输入为空时返回 null。
          */
         fun parseGregorianDate(value: String?): LocalDate? {
             val match = value?.let(gregorianDate::find) ?: return null

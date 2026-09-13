@@ -25,10 +25,16 @@ import lins.libs.module_base.model.CHNDate
     exportSchema = true
 )
 abstract class AppDataBase : RoomDatabase() {
-    /** 主界面使用的 CHNDate DAO（来源于通用黄历接口数据） */
+    /**
+     * 主界面使用的 CHNDate DAO（来源于通用黄历接口数据）
+     * @return 完整黄历表的 DAO，用于按日读写与观察。
+     */
     abstract fun chnDateDao(): CHNDateDao
 
-    /** Widget 后台使用的 LunarDate DAO (HkoRepository) */
+    /**
+     * Widget 后台使用的 LunarDate DAO (HkoRepository)
+     * @return HKO 农历表的 DAO，用于按日读写与观察。
+     */
     abstract fun lunarDateDao(): LunarDateDao
 
     companion object {
@@ -37,6 +43,11 @@ abstract class AppDataBase : RoomDatabase() {
 
         /** v2 → v3：将旧表名及驼峰列名改为显式下划线命名，保留 uid 与原有字段。 */
         val MIGRATION_2_3 = object : Migration(2, 3) {
+            /**
+             * 在 Room 提供的升级连接上完成结构/数据迁移，异常交由 Room 回滚。
+             * @param db Room 提供的升级数据库连接，迁移修改同一个库，不另建生产文件。
+             * @return Unit；在 Room 提供的升级连接上完成结构/数据迁移，异常交由 Room 回滚。
+             */
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL(
                     """
@@ -72,6 +83,11 @@ abstract class AppDataBase : RoomDatabase() {
          * 从 v2 安装升级时由 Room 依次运行 2→3、3→4，而不是跳过中间字段转换。
          */
         val MIGRATION_3_4 = object : Migration(3, 4) {
+            /**
+             * 在 Room 提供的升级连接上完成结构/数据迁移，异常交由 Room 回滚。
+             * @param db Room 提供的升级数据库连接，迁移修改同一个库，不另建生产文件。
+             * @return Unit；在 Room 提供的升级连接上完成结构/数据迁移，异常交由 Room 回滚。
+             */
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("""
                     CREATE TABLE `chn_date_v4` (
@@ -99,6 +115,8 @@ abstract class AppDataBase : RoomDatabase() {
         /**
          * 进程内双重检查单例。锁内必须再次检查 INSTANCE，避免并发首访各建一个数据库。
          * 使用 applicationContext 避免持有 Activity；build 只构建实例，实际打开/迁移可在首次查询时发生。
+         * @param context 调用入口的 Context；长生命周期依赖使用 applicationContext，避免持有页面。
+         * @return 进程内唯一 AppDataBase 实例，不持有 Activity Context。
          */
         fun getInstance(context: Context): AppDataBase {
             return INSTANCE ?: synchronized(this) {

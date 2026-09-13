@@ -18,17 +18,24 @@ import kotlinx.coroutines.ensureActive
  *
  * target 的父目录应已存在。临时文件位于同一目录，在应用内部文件系统上通过 rename
  * 替换使读者看到旧文件或完整新文件；这是进程内写入协调，不是跨进程文件锁。
+ * @param target 最终图片文件，父目录必须已存在且可写；所有选择应共用一个写入器。
  */
 class LatestImageWriter(private val target: File) {
     private val latest = AtomicLong()
     private val mutex = Mutex()
     private val commitLock = Any()
-    /** 在用户选择事件发生时立即取号，不能等后台协程开始后才取号，否则会丢失真实选择顺序。 */
+    /**
+     * 在用户选择事件发生时立即取号，不能等后台协程开始后才取号，否则会丢失真实选择顺序。
+     * @return 递增的 Long 请求序号，应在启动后台编码之前取得。
+     */
     fun newRequest(): Long = synchronized(commitLock) { latest.incrementAndGet() }
 
     /**
      * 返回 true 表示已提交，false 表示被后续选择淘汰；编码/落盘异常继续抛给 UI 入口。
      * 最新选择失败时保留原目标，不让已经过时的请求随后覆盖它；不会自动回退到上一次选择。
+     * @param request 用户选择发生时由 newRequest 返回的序号，用于拒绝过时提交。
+     * @param encode 向当前请求的临时输出流写入完整图片的挂起回调；异常交由调用方处理。
+     * @return Boolean；true 表示最新请求已提交，false 表示被后续选择淘汰。
      */
     suspend fun write(request: Long, encode: suspend (OutputStream) -> Unit): Boolean = mutex.withLock {
         if (request != latest.get()) return@withLock false

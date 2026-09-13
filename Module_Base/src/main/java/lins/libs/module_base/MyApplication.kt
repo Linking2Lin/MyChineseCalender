@@ -14,6 +14,10 @@ import com.elvishew.xlog.printer.file.FilePrinter
  */
 open class MyApplication : Application() {
 
+    /**
+     * 完成当前生命周期初始化，后续异步结果由仓库和状态流传递。
+     * @return Unit；完成当前生命周期初始化，后续异步结果由仓库和状态流传递。
+     */
     override fun onCreate() {
         super.onCreate()
 

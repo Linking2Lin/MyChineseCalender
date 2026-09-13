@@ -30,7 +30,11 @@ object WidgetImageManager {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     @Volatile private var writer: LatestImageWriter? = null
 
-    /** 所有选择共用一个写入器及序号，不能每次点击新建，否则无法保证最后选择生效。 */
+    /**
+     * 所有选择共用一个写入器及序号，不能每次点击新建，否则无法保证最后选择生效。
+     * @param context 调用入口的 Context；长生命周期依赖使用 applicationContext，避免持有页面。
+     * @return 整个进程共用的图片写入器，所有选择共享提交顺序。
+     */
     private fun writer(context: Context) = writer ?: synchronized(this) {
         writer ?: LatestImageWriter(File(context.filesDir, WIDGET_CUSTOM_IMAGE_FILE)).also { writer = it }
     }
@@ -38,6 +42,9 @@ object WidgetImageManager {
     /**
      * 在选择器回调中立即调用。URI 是本次获授权读取的来源，不长期保存，也不保留 Activity 引用。
      * 只在保存成功后通知 WidgetImages；被更新选择淘汰的任务安静结束，不提示虚假的成功。
+     * @param context 调用入口的 Context；长生命周期依赖使用 applicationContext，避免持有页面。
+     * @param uri 照片选择器本次授予读取权限的图片 URI，不将其作为长期文件路径保存。
+     * @return Unit；异步保存并请求组件更新，完成或失败通过原有 Toast 反馈。
      */
     fun saveImageToInternalStorage(context: Context, uri: Uri) {
         val appContext = context.applicationContext

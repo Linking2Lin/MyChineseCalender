@@ -25,12 +25,17 @@ const val WIDGET_CUSTOM_IMAGE_FILE = "widget_custom_image.png"
 object WidgetImages {
     private val _revision = MutableStateFlow(0L)
     val revision = _revision.asStateFlow()
-    /** 只有新文件成功提交后调用，确保订阅者收到通知时能读取完整图片。 */
+    /**
+     * 只有新文件成功提交后调用，确保订阅者收到通知时能读取完整图片。
+     * @return Unit；递增头像失效版本，使活跃订阅重新读取文件。
+     */
     fun changed() { _revision.update { it + 1 } }
 
     /**
      * 新进程的首次订阅也会调用读取；应在 IO 调度器执行。
      * 二次采样减小传给 RemoteViews 的位图体积，读取失败返回 null，由展示层使用默认头像。
+     * @param context 调用入口的 Context；长生命周期依赖使用 applicationContext，避免持有页面。
+     * @return Bitmap；成功时返回解码结果，图片不存在或读取失败时返回 null。
      */
     fun load(context: Context): Bitmap? = try {
         val file = File(context.filesDir, WIDGET_CUSTOM_IMAGE_FILE)
@@ -45,6 +50,8 @@ object WidgetImages {
 /**
  * 将源图中心正方形绘制到透明圆形蒙版，返回一个新的软件 Bitmap。
  * 不修改/回收输入；调用方负责释放输入及返回值，不能在 Glance 仍引用图片时提前回收。
+ * @param bitmap 调用方持有的源位图；函数不修改或回收它。
+ * @return 新创建的圆形透明背景 Bitmap；调用方在使用完毕后负责回收。
  */
 fun getCircleBitmap(bitmap: Bitmap): Bitmap {
     val crop = ImageGeometry.centerCrop(bitmap.width, bitmap.height)
