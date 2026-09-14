@@ -24,6 +24,7 @@ const val WIDGET_CUSTOM_IMAGE_FILE = "widget_custom_image.png"
  */
 object WidgetImages {
     private val _revision = MutableStateFlow(0L)
+    /** 当前进程的头像失效序号；每个新订阅也会收到初值，从而读取磁盘上的已有图片。 */
     val revision = _revision.asStateFlow()
     /**
      * 只有新文件成功提交后调用，确保订阅者收到通知时能读取完整图片。

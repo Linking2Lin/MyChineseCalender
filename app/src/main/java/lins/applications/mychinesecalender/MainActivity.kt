@@ -27,13 +27,13 @@ class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
 
     /**
-     * 完成当前生命周期初始化，后续异步结果由仓库和状态流传递。
+     * 建立页面组合、配置仓库，并启动诗词加载和前台日期监听。
      * @param savedInstanceState 系统保存的页面状态；首次创建为 null，原样交给父类恢复。
-     * @return Unit；完成当前生命周期初始化，后续异步结果由仓库和状态流传递。
+     * @return Unit；完成页面与生命周期装配，异步结果由 ViewModel 状态流提供。
      */
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        // 启用沉浸式边缘布局，让内容可以延伸到系统栏下方，页面更现代。
+        // 启用边缘布局；Scaffold 计算系统栏留白，再由 innerPadding 传入页面内容。
         enableEdgeToEdge()
 
         // Compose UI 入口：把数据和事件交给 MainContent，Activity 不直接写业务 UI。

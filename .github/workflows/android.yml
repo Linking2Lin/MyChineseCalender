@@ -5,6 +5,7 @@ on:
   push:
   pull_request:
 
+# CI 只需读取仓库，当前任务不提交代码或发布安装包。
 permissions:
   contents: read
 
@@ -14,11 +15,13 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
+      # 先配置构建 JDK 和 Android SDK，再由 Gradle Wrapper 执行仓库固定的构建版本。
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
       - uses: android-actions/setup-android@v3
       - uses: gradle/actions/setup-gradle@v4
+      # 同时检查发布压缩、JVM 行为和 Android 测试源码编译；这里没有连接设备的执行步骤。
       - name: Build both variants and run regression checks
         run: ./gradlew :app:assembleDebug :app:assembleRelease testDebugUnitTest lintDebug :Module_Base:assembleDebugAndroidTest

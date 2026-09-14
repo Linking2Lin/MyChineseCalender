@@ -9,6 +9,7 @@ import kotlinx.coroutines.CancellationException
  * @param failures 实例更新失败次数；枚举整体失败使用 1 作为失败标记。
  */
 data class WidgetUpdateResult(val total: Int, val failures: Int) {
+    /** 没有记录到更新失败时为 true；不代表宿主已绘制，也不要求存在实例。 */
     val succeeded: Boolean get() = failures == 0
 }
 

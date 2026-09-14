@@ -18,7 +18,10 @@ import org.junit.rules.TemporaryFolder
 class LatestImageWriterTest {
     @get:Rule val folder = TemporaryFolder()
 
-    // 旧编码已开始后再创建新序号，旧请求必须放弃提交，最终只保留完整的新文件。
+    /**
+     * 旧图片正在编码时产生新选择，验证旧请求不能提交，最终文件只包含完整的新图片。
+     * @return Unit；断言通过时正常结束，失败由 JUnit 报告。
+     */
     @Test fun newerSelectionWinsEvenWhenOldEncodingIsStillRunning() = runTest {
         val target = File(folder.root, "avatar.png")
         val writer = LatestImageWriter(target)
@@ -30,9 +33,11 @@ class LatestImageWriterTest {
             encoding.complete(Unit)
             finish.await()
         } }
+        // 先等旧请求开始写入，再模拟新选择，避免测试依赖线程抢占的偶然顺序。
         encoding.await()
         val secondId = writer.newRequest()
         val second = async { writer.write(secondId) { it.write("new-image".toByteArray()) } }
+        // 放行旧编码后，它必须重新检查序号；新请求才可以最终替换目标文件。
         finish.complete(Unit)
         assertFalse(first.await())
         assertTrue(second.await())
@@ -40,7 +45,10 @@ class LatestImageWriterTest {
         assertEquals(listOf("avatar.png"), folder.root.list()!!.toList())
     }
 
-    // 编码写出一部分后故意失败，已有文件必须保持原内容，临时文件必须清理。
+    /**
+     * 编码部分内容后抛出异常，验证原图片保持完整且本次临时文件被清理。
+     * @return Unit；断言通过时正常结束，失败由 JUnit 报告。
+     */
     @Test fun encodingFailurePreservesExistingFileAndRemovesTemporaryFile() = runTest {
         val target = File(folder.root, "avatar.png").apply { writeText("original") }
         val writer = LatestImageWriter(target)

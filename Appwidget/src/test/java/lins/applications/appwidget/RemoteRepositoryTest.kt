@@ -24,6 +24,10 @@ class RemoteRepositoryTest {
     private val today = LocalDate.of(2026, 9, 6)
     private val valid = """{"公历日期":"2026年9月6日 星期日","农历日期":"七月廿五","新增字段":"test"}"""
 
+    /**
+     * 核对黄历请求的年、月、日参数，并验证响应扩充字段不会使有效结果解析失败。
+     * @return Unit；断言通过时正常结束，失败由 JUnit 报告。
+     */
     @Test fun almanacUsesRequestedDayAndAcceptsExtraFields() = runTest {
         val client = HttpClient(MockEngine { request ->
             assertEquals("2026", request.url.parameters["year"])
@@ -35,6 +39,10 @@ class RemoteRepositoryTest {
         finally { client.close() }
     }
 
+    /**
+     * 服务端返回错误 HTTP 状态时，即使正文结构有效也必须拒绝作为黄历结果。
+     * @return Unit；断言通过时正常结束，失败由 JUnit 报告。
+     */
     @Test fun errorStatusCannotBeAcceptedAsCalendarEvenWithValidBody() = runTest {
         val client = HttpClient(MockEngine { respond(valid, HttpStatusCode.InternalServerError) })
         try {
@@ -43,6 +51,10 @@ class RemoteRepositoryTest {
         } finally { client.close() }
     }
 
+    /**
+     * 分别模拟缺少核心字段和公历错日，验证两者都不能通过适配器校验。
+     * @return Unit；断言通过时正常结束，失败由 JUnit 报告。
+     */
     @Test fun mismatchedOrPartialAlmanacIsRejected() = runTest {
         for (body in listOf("""{"宜":"测试"}""", valid.replace("9月6日", "9月5日"))) {
             val client = HttpClient(MockEngine { respond(body) })
@@ -53,6 +65,10 @@ class RemoteRepositoryTest {
         }
     }
 
+    /**
+     * 核对 HKO 使用 ISO 日期请求，并拒绝农历月日为空的成功 HTTP 响应。
+     * @return Unit；断言通过时正常结束，失败由 JUnit 报告。
+     */
     @Test fun hkoRejectsBlankFieldsAndSendsIsoDate() = runTest {
         val client = HttpClient(MockEngine { request ->
             assertEquals("2026-09-06", request.url.parameters["date"])

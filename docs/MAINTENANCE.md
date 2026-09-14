@@ -1,6 +1,6 @@
 # 代码维护导航
 
-本文从“要改什么”定位源码。类和方法旁的中文注释描述当前实现的职责、调用顺序和边界；本轮排查与验证见 [2026-09-13 审查及修复报告](REVIEW_AND_FIXES_2026-09-13.md)，此前记录见 [2026-09-06 审查报告](CODE_REVIEW_2026-09-06.md) 和 [修复记录](FIXES_2026-09-06.md)。修改行为时应同步更新相邻注释及相关测试，避免注释继续描述旧行为。函数注释使用 `@param` 说明入参、`@return` 说明结果或副作用，函数内部注释解释关键顺序、失败处理和边界。
+本文从“要改什么”定位源码。类和方法旁的中文注释描述当前实现的职责、调用顺序和边界；逻辑修复记录见 [2026-09-13 审查及修复报告](REVIEW_AND_FIXES_2026-09-13.md)，此前记录见 [2026-09-06 审查报告](CODE_REVIEW_2026-09-06.md) 和 [修复记录](FIXES_2026-09-06.md)。2026-09-14 的注释整理进一步补齐了状态含义、测试场景和构建配置说明，保留 `2070181` 已有逻辑与外观。修改行为时应同步更新相邻注释及相关测试，避免注释继续描述旧行为。函数注释使用 `@param` 说明入参、`@return` 说明结果或副作用，函数内部注释解释关键顺序、失败处理和边界。
 
 ## 1. 从这些入口阅读
 
@@ -45,7 +45,9 @@ Glance 活跃会话不能依靠重复调用 `update` 一定重进 `provideGlance
 
 `WidgetUpdateResult` 表示应用侧更新请求的结果，不代表宿主已经绘制完成。单实例失败继续处理其他实例，枚举失败单独记整体失败。系统省电、强行停止和宿主行为仍可能延迟显示，计算正确不等于零点准时刷新。
 
-小组件外观以本轮开始时的 `f6e4fac` 为基准，其中保留此前精调布局，并已包含用户最近提交的空态行为：所有尺寸的空态复用中等布局与头像，两行文字为“常能遣其欲而心自静，”和“澄其心而神自清。”。入口与布局常量在 [MyAppWidget](../Appwidget/src/main/java/lins/applications/appwidget/MyAppWidget.kt)，另见 [Provider 配置](../Appwidget/src/main/res/xml/my_app_widget_info.xml) 和 [Debug 预览](../Appwidget/src/debug/java/lins/applications/appwidget/WidgetPreviews.kt)。胶囊边距、头像比例、字号公式、文字顺序、对齐和尺寸分支均属于已确认的视觉设计，逻辑修复与注释维护不得顺带调整。只有用户明确要求改外观时才修改这些参数。预览源码留在 `src/debug`，其依赖不进入 Release。
+小组件沿用现有精调布局。所有尺寸的空态复用中等布局与头像，两行文字为“常能遣其欲而心自静，”和“澄其心而神自清。”。入口与布局常量在 [MyAppWidget](../Appwidget/src/main/java/lins/applications/appwidget/MyAppWidget.kt)，另见 [Provider 配置](../Appwidget/src/main/res/xml/my_app_widget_info.xml) 和 [Debug 预览](../Appwidget/src/debug/java/lins/applications/appwidget/WidgetPreviews.kt)。胶囊边距、头像比例、字号公式、文字顺序、对齐和尺寸分支均属于已确认的视觉设计，逻辑修复与注释维护不得顺带调整。只有用户明确要求改外观时才修改这些参数。预览源码留在 `src/debug`，其依赖不进入 Release。
+
+阅读展示代码时注意两个容易误判的地方：正式入口的大尺寸分支当前调用 `MediumWidgetLayout`，保留的 `MaxWidgetLayout` 由独立预览直接调用；中等布局没有额外的两行间隔 `Spacer`，但字号公式仍扣除 `TEXT_LINE_SPACING` 的 4dp 预算。这是当前实现，不应通过“修正注释与公式不一致”顺手改变布局。
 
 ## 4. 头像与诗词
 
@@ -93,3 +95,46 @@ Room 结构升级必须增加版本号并追加迁移，现有安装通过 `2→
 排查时先区分故障阶段：没有数据看接口/日期校验；有数据但 `cacheError` 看数据库与磁盘；仓库数据正确但组件不变化看订阅、更新请求和宿主；重启后头像/Token/任务丢失看持久化身份是否被改名。业务日志经 `Logger` 输出，日志初始化见 `MyApplication`。共享客户端的 HTTP 日志由 [NetworkLogging](../Module_Base/src/main/java/lins/libs/module_base/network/NetworkLogging.kt) 配置：Debug 使用 HEADERS、不打印请求和响应正文，并隐藏 `X-User-Token`、`Authorization`、`Cookie`、`Set-Cookie`；Release 使用 NONE。业务异常日志是另外一条路径，新增日志仍应避免直接输出 Token、个人数据或完整响应。
 
 只修改注释时，可以先对照去除注释后的源码并编译；修改行为时再选择上表对应测试，避免把“编译通过”当成业务行为已经验证。
+
+## 7. 如何阅读状态与测试
+
+建议先沿一条完整链路阅读，再看共享实现：主页从 `MainActivity → MainViewModel → CalendarRepositories.almanac → DailyRepository` 进入；小组件从 `RefreshAction` 或 `SyncDateWorker → WidgetDataSyncHelper → CalendarRepositories.lunar` 进入，显示由 `MyAppWidget` 独立订阅。网络适配器只负责一次请求，DAO 只负责持久化，优先级与失败恢复由仓库协调。
+
+| 状态或字段 | 含义 | 维护时避免的误读 |
+| --- | --- | --- |
+| `DateLoadResult.date` | 请求所属的公历日期 | 不能改成请求完成时重新计算的今天 |
+| `DateLoadResult.data` | 该日期可展示的有效数据，可为空 | 非空不代表本次刷新或写盘成功 |
+| `loading / error / cacheError` | 分别表示正在加载、网络/校验失败、缓存故障 | 不能合并成一个布尔值后丢失错误阶段 |
+| `MainViewModel.selectedDate` | 页面目前选中并订阅的日期 | 不是最近一次网络返回的日期 |
+| `WidgetImages.revision` | 进程内的头像失效通知序号 | 不是图片是否存在的依据，也不跨进程保存 |
+| `PoemRepository.tokenRead` | 本实例已读取过缓存或主动使 Token 失效 | true 不保证磁盘读取成功或已有有效 Token |
+| `PoemRepository.tokenDirty` | 内存 Token 的保存或删除尚未完成 | 待保存值可为 null，表示需要删除旧凭证 |
+| `WidgetSyncResult.succeeded` | 今日数据、缓存操作与更新请求均无失败 | 不代表桌面宿主已经完成绘制 |
+
+测试函数的 KDoc 说明触发条件与预期结果；内部注释只补充不直观的时序和故障注入点。`src/test` 是 JVM 用例，`src/androidTest` 需要 Android 环境，`src/debug` 中的预览用于观察样例布局，三者用途不同。
+
+- `StandardTestDispatcher` 与 `testScheduler` 让仓库、页面和断言共享虚拟时间。`advanceTimeBy` 推进时钟，紧随其后的 `runCurrent` 执行该时刻到期的任务；不要改成真实等待来重现竞争。
+- `CompletableDeferred` 是测试中的时序握手：先确认旧图片编码或明日预取已经开始，再发起会产生竞争的新操作。它使测试验证指定顺序，而不是碰运气触发线程交错。
+- `DailyRepositoryTest.Cache` 用独立开关模拟读、写、清理和取消。`prunes` 统计清理尝试次数，`writes` 统计成功进入写入的次数，断言计数时需区分。
+- `MainViewModelTest.Cache.prune` 故意不执行清理，页面用例只验证状态传递；保留范围由仓库测试覆盖。`ViewModelStore.clear()` 与恢复 Main 调度器用于隔离用例。
+- HTTP 用例的 `MockEngine` 校验真实请求参数和认证头，再返回预设响应；不会验证线上服务可用性。客户端由创建它的测试关闭，日志用例还等待内部协程结束后再断言完整输出。
+- `ExampleUnitTest` 与 `ExampleInstrumentedTest` 保留为基础环境用例，分别验证本地断言与目标 Context 包名；不要将它们计作日历、数据库或桌面行为的覆盖证据。
+
+## 8. 构建、资源与注释的维护位置
+
+| 文件或目录 | 负责的内容 | 阅读提示 |
+| --- | --- | --- |
+| [settings.gradle.kts](../settings.gradle.kts) | 模块组成、插件仓库、依赖仓库 | 插件解析与普通依赖下载分别配置 |
+| [根构建脚本](../build.gradle.kts) / [版本目录](../gradle/libs.versions.toml) | 插件别名与统一版本 | 声明库别名不等于已经引入，实际使用由各模块依赖决定 |
+| 各模块 `build.gradle.kts` | 编译配置、依赖范围、测试与压缩 | Java 编译目标和运行 Gradle 的 JDK 是两项配置；预览依赖保持 Debug 范围 |
+| [gradle.properties](../gradle.properties) | 构建进程、AndroidX 与资源类设置 | 构建 JVM 的网络属性不等于应用内 Ktor 配置 |
+| [app Manifest](../app/src/main/AndroidManifest.xml) | 权限、Application、页面与接收器 | 三个库 Manifest 当前没有独立注册项 |
+| [应用 R8 规则](../app/proguard-rules.pro) | 最终 APK 压缩时保留框架入口 | 库的 `consumer-rules.pro` 随 AAR 传递；库自身的 `proguard-rules.pro` 作用范围不同 |
+| [CI 工作流](../.github/workflows/android.yml) | 自动构建、JVM 测试和静态检查 | 当前只编译数据库仪器测试 APK，不运行设备测试 |
+| [小组件 Provider](../Appwidget/src/main/res/xml/my_app_widget_info.xml) | 宿主尺寸、缩放和预览配置 | 与 Kotlin 布局参数共同构成外观约定，不在注释整理中调整 |
+| [小组件渐变](../Appwidget/src/main/res/drawable/widget_gradient_background.xml) / `values`、`values-night` | 背景绘制与日夜色值 | 页面主题与 Glance 使用不同入口，不能只看页面色板判断组件颜色 |
+| [备份规则](../app/src/main/res/xml/backup_rules.xml) / [数据提取规则](../app/src/main/res/xml/data_extraction_rules.xml) | 应用备份及设备迁移范围 | 与数据库文件名、头像路径和 Token 存储身份一起检查 |
+
+新增注释按以下约定维护：类说明职责、数据来源和生命周期；函数首句说明动作，`@param` 标明单位、空值和约束，`@return` 标明实际返回值或异步结果去向；关键步骤解释执行顺序、所有权和失败处理。无参数函数不添加虚构的入参说明，简单表达式不逐行重复语法，历史调整经过放在提交记录或修复报告中。
+
+自动生成的 Room schema、编译产物、Gradle Wrapper 和二进制图片保持原样；JSON schema 不支持注释，其迁移意图应写在 `AppDataBase` 与迁移测试旁。本次资源文件逐字节保留，资源职责在本导航中补充，避免为增加说明而重写图标或布局文件。

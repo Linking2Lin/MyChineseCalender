@@ -35,6 +35,7 @@ class MainViewModel(
     private val loadDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ViewModel() {
     private val _calendar = MutableStateFlow(DateLoadResult<CHNDate>(today()))
+    /** 页面只读的黄历状态；data、loading、error 和 cacheError 分别表达内容与加载结果。 */
     val calendar = _calendar.asStateFlow()
     // selectedDate 是当前页面订阅的日期，不是最近一次网络完成的日期。
     private var selectedDate: LocalDate? = null
@@ -44,10 +45,13 @@ class MainViewModel(
 
     private var poemRepository: PoemRepository? = null
     private val _poem = MutableStateFlow<PoemResponse?>(null)
+    /** 最近一次成功取得的诗词；请求失败时保留，首次尚未成功时为 null。 */
     val poem = _poem.asStateFlow()
     private val _isPoemLoading = MutableStateFlow(false)
+    /** 诗词请求是否进行中；用于控制加载提示和重复点击，与是否已有诗词相互独立。 */
     val isPoemLoading = _isPoemLoading.asStateFlow()
     private val _poemError = MutableStateFlow(false)
+    /** 最近一次诗词请求的失败标记；重试开始时清除，不以清空旧诗词表达失败。 */
     val poemError = _poemError.asStateFlow()
 
     /**
@@ -78,11 +82,13 @@ class MainViewModel(
      */
     fun refreshCalendar(force: Boolean = false) {
         val date = today()
+        // configure 是生产入口的前置步骤；测试通过构造器注入仓库。
         val repository = checkNotNull(calendarRepository)
         if (selectedDate != date) {
             calendarLoad?.cancel()
             calendarObserver?.cancel()
             selectedDate = date
+            // 换日立即使用新日期身份，不能等新请求完成后才移除昨天的展示数据。
             _calendar.value = DateLoadResult(date, loading = true)
             calendarObserver = viewModelScope.launch {
                 repository.observe(date).collect { result ->
@@ -112,6 +118,7 @@ class MainViewModel(
      */
     fun fetchPoem() {
         if (_isPoemLoading.value) return
+        // 先同步置位再启动协程，使同一主线程上的后续点击立即看到进行中的请求。
         _isPoemLoading.value = true
         _poemError.value = false
         viewModelScope.launch {

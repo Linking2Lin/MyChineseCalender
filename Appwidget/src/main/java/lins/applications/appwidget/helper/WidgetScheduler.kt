@@ -25,6 +25,7 @@ import lins.libs.module_base.time.CalendarDates
  * 所有方法只调度或取消任务，不执行网络、数据库查询，适合广播的短执行窗口。
  */
 object WidgetScheduler {
+    /** 午夜闹钟的显式广播 action；必须与 DateChangeReceiver 的白名单一致。 */
     const val ACTION_ROLLOVER = "lins.applications.appwidget.ROLLOVER"
     // 唯一任务名是已有安装的持久化身份；随意改名会留下旧任务与新任务同时运行。
     private const val PERIODIC = "sync_lunar_date"
@@ -58,7 +59,7 @@ object WidgetScheduler {
 
     /**
      * 对密集触发的广播/订阅合并排队：KEEP 保留尚未完成的即时任务。
-     * 周期与即时任务名字不同，仍可能同时触发；仓库层的 Mutex 负责串行化数据加载。
+     * 周期与即时任务名字不同，仍可能同时触发；仓库层按日期的 Mutex 负责串行化同日加载。
      * @param context 调用入口的 Context；长生命周期依赖使用 applicationContext，避免持有页面。
      * @return Unit；向 WorkManager 排队唯一即时任务，已有未完成任务时合并触发。
      */

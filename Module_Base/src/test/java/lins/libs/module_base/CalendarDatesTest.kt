@@ -19,7 +19,10 @@ import org.junit.Test
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class CalendarDatesTest {
-    // 夏令时切换日分别为 23/25 小时，防止把明天午夜写成当前时间加固定 24 小时。
+    /**
+     * 使用夏令时开始和结束日，验证下一午夜按本地日历计算，间隔分别为 23 和 25 小时。
+     * @return Unit；断言通过时正常结束，失败由 JUnit 报告。
+     */
     @Test fun midnightUsesLocalTimezoneAndDaylightSaving() {
         val zone = ZoneId.of("America/New_York")
         val spring = Clock.fixed(Instant.parse("2026-03-08T05:00:00Z"), zone)
@@ -28,13 +31,19 @@ class CalendarDatesTest {
         assertEquals(25 * 3_600_000L, CalendarDates.nextMidnightMillis(fall) - fall.millis())
     }
 
-    // 离午夜仅一秒时缩短轮询等待，避免固定周期额外延迟。
+    /**
+     * 距离本地午夜仅一秒时，验证日期轮询缩短等待，不额外延后一个完整检查周期。
+     * @return Unit；断言通过时正常结束，失败由 JUnit 报告。
+     */
     @Test fun checkAtMidnightDoesNotWaitAnotherThirtySeconds() {
         val clock = Clock.fixed(Instant.parse("2026-09-06T15:59:59Z"), ZoneId.of("Asia/Shanghai"))
         assertEquals(1_000L, CalendarDates.millisUntilCheck(clock))
     }
 
-    // 同日不重复发射，正常跨天与手动回拨都发出新日期；runCurrent 推进到期任务。
+    /**
+     * 推进虚拟时间并修改注入日期，验证同日去重、正常跨日及手动回拨均按约定发射。
+     * @return Unit；断言通过时正常结束，失败由 JUnit 报告。
+     */
     @Test fun dateFlowEmitsRolloverAndClockRollbackWithoutDuplicates() = runTest {
         var now = LocalDate.of(2026, 9, 6)
         val dates = mutableListOf<LocalDate>()

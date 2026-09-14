@@ -35,7 +35,7 @@ interface DailyCache<T> {
     /**
      * 冷数据流：订阅时读取当前记录，随后发出该日缓存的变化。
      * @param date 本次操作的公历日期，使用设备当前时区解释；不能用请求完成时的日期替换。
-     * @return 冷 Flow；发出该日期的缓存或加载状态，不主动发起网络请求。
+     * @return 冷 Flow；仅发出指定日期的数据或 null，不主动发起网络请求。
      */
     fun observe(date: LocalDate): Flow<T?>
     /**
@@ -94,9 +94,11 @@ class DailyRepository<T>(
     private val today: () -> LocalDate = LocalDate::now,
     private val dispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
+    // 同日映射到同一把锁；固定数组限制内存占用，碰撞只会让不同日期额外排队。
     private val dateLocks = Array(32) { Mutex() }
     // 已获取但尚未完成持久化/清理的日期，取消也不能丢掉这项待办。
     private val pendingPersistence = ConcurrentHashMap.newKeySet<LocalDate>()
+    // 以请求日期隔离加载状态，多个日期的发布必须通过 update 原子合并。
     private val results = MutableStateFlow<Map<LocalDate, DateLoadResult<T>>>(emptyMap())
 
     /**
@@ -105,7 +107,7 @@ class DailyRepository<T>(
      * 有本次加载状态时优先显示它，保留 loading/error 和尚未落盘的网络数据；因此后续
      * 业务写入应通过 load，不能绕过仓库直接写 DAO 并期待覆盖已有的内存状态。
      * @param date 本次操作的公历日期，使用设备当前时区解释；不能用请求完成时的日期替换。
-     * @return 冷 Flow；发出该日期的缓存或加载状态，不主动发起网络请求。
+     * @return 冷 Flow<DateLoadResult<T>>；发出本日数据、加载与错误状态，不主动发起网络请求。
      */
     fun observe(date: LocalDate): Flow<DateLoadResult<T>> = combine(
         // 包裹 observe 的创建过程，连数据库打开失败也能被 catch 接住。
@@ -132,6 +134,7 @@ class DailyRepository<T>(
      */
     suspend fun load(date: LocalDate, force: Boolean = false): DateLoadResult<T> =
         dateLocks[Math.floorMod(date.hashCode(), dateLocks.size)].withLock {
+            // 先确认实际磁盘值，才能判断内存数据是否需要补写；缓存故障不等于网络故障。
             var cacheError: Exception? = null
             val persisted = try {
                 cache.read(date)?.takeIf { isValid(it, date) }
@@ -144,6 +147,7 @@ class DailyRepository<T>(
             // 本仓库是业务写入入口，内存可能比磁盘新（上次写入失败）；不能让旧磁盘值覆盖它。
             val cached = results.value[date]?.data?.takeIf { isValid(it, date) } ?: persisted
             if (cached != null && !force) {
+                // 命中缓存也可能有未完成的持久化步骤；修复存储不需要再联网。
                 if (persisted != cached || date in pendingPersistence) {
                     cacheError = persist(date, cached)
                 }
@@ -151,6 +155,7 @@ class DailyRepository<T>(
             }
 
             publish(DateLoadResult(date, cached, loading = true, cacheError = cacheError))
+            // 独立记录已经校验的最新值，供持久化期间取消或失败时继续展示。
             var newest = cached
             try {
                 val data = fetch(date)

@@ -14,7 +14,7 @@ import lins.applications.appwidget.helper.WidgetScheduler
  */
 class SyncDateWorker(context: Context, parameters: WorkerParameters) : CoroutineWorker(context, parameters) {
     /**
-     * WorkManager Result；无组件/同步成功时成功，可恢复失败时请求退避重试。
+     * 检查桌面实例、重排午夜任务、同步今天，并在成功后尽力预取明天。
      * @return WorkManager Result；无组件/同步成功时成功，可恢复失败时请求退避重试。
      */
     override suspend fun doWork(): Result {

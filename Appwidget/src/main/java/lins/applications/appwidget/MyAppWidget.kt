@@ -65,7 +65,7 @@ class MyAppWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Exact
 
     /**
-     * Unit（挂起）；完成初始数据准备并交给 Glance 管理内容会话，不直接返回视图。
+     * 准备本地首帧，再将日期数据和头像的持续订阅交给 Glance 内容会话。
      * @param context 调用入口的 Context；长生命周期依赖使用 applicationContext，避免持有页面。
      * @param id 当前 Glance 实例标识，由框架提供。
      * @return Unit（挂起）；完成初始数据准备并交给 Glance 管理内容会话，不直接返回视图。
@@ -110,13 +110,13 @@ class MyAppWidget : GlanceAppWidget() {
 private val OUTER_VERTICAL_PADDING = 8.dp
 
 /**
- * 胶囊内容区的上下边距。外边距增加 2dp 的同时，这里减少 2dp，
- * 使胶囊背景变矮，但头像和文字的可用内容高度保持不变。
+ * 胶囊内容区的上下内边距，每侧 10dp；头像和文字的高度计算同时扣除这两侧。
+ * 它与外层边距共同影响内容可用高度，维护逻辑时不要单独调整其中一项。
  */
 private val CONTENT_VERTICAL_MARGIN = 10.dp
 
 /**
- * 左侧内容边距单独减少 2dp，使头像和文字与上方 Widget 对齐。
+ * 胶囊内容区左边距 10dp，保留已调整好的横向对齐位置。
  */
 private val CONTENT_START_MARGIN = 10.dp
 
@@ -135,7 +135,8 @@ private val AVATAR_VISUAL_INSET = 1.5.dp
 private val TEXT_AREA_VERTICAL_PADDING = 6.dp
 
 /**
- * 两行文字之间的间距，字号自适应计算需要扣除它。
+ * 两行文字的间距预算，为既有字号公式提供 4dp 扣减值。
+ * 大布局使用对应 Spacer；中等布局的 Spacer 当前停用，但公式仍保留这项预算。
  */
 private val TEXT_LINE_SPACING = 4.dp
 
@@ -161,9 +162,8 @@ fun WidgetContent(date: LunarDateResponse?, customBitmap: Bitmap?) {
 
     when {
         size.width >= MyAppWidget.BIG_SQUARE.width -> {
-            // 这里为了简单，大尺寸也复用中等尺寸的样式，因为 HkoRepository 只返回了 lunarYear 和 lunarDate
-            // MaxWidgetLayout(date = date, customBitmap = customBitmap)
-            // 先暂时使用中等，大布局需要确认最终排版
+            // 正式入口的大尺寸分支当前也使用中等布局。MaxWidgetLayout 保留供独立预览，
+            // 不应在注释整理或业务维护时直接切换到它，否则会改变现有展示。
             MediumWidgetLayout(date = date, customBitmap = customBitmap)
 
         }
@@ -183,7 +183,7 @@ fun WidgetContent(date: LunarDateResponse?, customBitmap: Bitmap?) {
 // ────────────────────────────────────────────────────────────────
 
 /**
- * 组合原有小尺寸农历视图，尺寸、边距和文字样式不变。
+ * 在小尺寸胶囊中居中显示农历月日，点击交给 RefreshAction 同步。
  * @param date 待展示的有效农历模型，不接受 null；文字内容沿用原有布局。
  * @param modifier 调用方提供的布局修饰符，继续叠加原有约束，不改写既定间距和尺寸。
  * @return Unit；组合原有小尺寸农历视图，尺寸、边距和文字样式不变。
@@ -321,7 +321,7 @@ fun MediumWidgetLayout(
                     maxLines = 1,
                 )
 
-                //Spacer(modifier = GlanceModifier.height(TEXT_LINE_SPACING))
+                // 此处当前没有 Spacer；TEXT_LINE_SPACING 仅参与字号预算，不额外插入垂直空隙。
 
                 // 第二行：农历月日，或空态固定文案。
                 Text(
@@ -344,7 +344,7 @@ fun MediumWidgetLayout(
 // ────────────────────────────────────────────────────────────────
 
 /**
- * 组合原有大尺寸视图；正式入口是否采用它由既有尺寸分支决定。
+ * 保留的大尺寸独立布局；当前仅由对应预览直接调用，正式入口复用中等布局。
  * @param date 待展示的有效农历模型，不接受 null；文字内容沿用原有布局。
  * @param customBitmap 已读取的自定义头像；null 时沿用布局原有的默认头像。
  * @param modifier 调用方提供的布局修饰符，继续叠加原有约束，不改写既定间距和尺寸。
@@ -439,7 +439,7 @@ fun MaxWidgetLayout(
                 horizontalAlignment = Alignment.Start,
             ) {
 
-                // 第一行：lunarYear 和 夫人神好清
+                // 第一行：农历月日与农历年拼接显示。
                 Row(
                     modifier = GlanceModifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -469,7 +469,7 @@ fun MaxWidgetLayout(
 
                 Spacer(modifier = GlanceModifier.height(TEXT_LINE_SPACING))
 
-                // 第二行：
+                // 第二行：固定文字，与第一行使用相同字号。
                 Row(
                     modifier = GlanceModifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,

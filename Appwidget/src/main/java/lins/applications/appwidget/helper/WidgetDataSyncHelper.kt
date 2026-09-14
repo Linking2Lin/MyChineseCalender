@@ -16,6 +16,7 @@ import lins.libs.module_base.time.CalendarDates
  * @param updates 最后一轮组件更新请求的结果统计。
  */
 data class WidgetSyncResult(val dataReady: Boolean, val cacheSaved: Boolean, val updates: WidgetUpdateResult) {
+    /** 数据、缓存操作与更新请求三项同时满足时，Worker 才进入预取并返回成功。 */
     val succeeded: Boolean get() = dataReady && cacheSaved && updates.succeeded
 }
 

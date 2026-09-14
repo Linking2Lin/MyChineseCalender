@@ -70,6 +70,7 @@ data class CHNDate(
          * @return LocalDate；格式或日期本身无效、输入为空时返回 null。
          */
         fun parseGregorianDate(value: String?): LocalDate? {
+            // 正则只筛选展示格式；闰年和每月天数仍交给 LocalDate 做真实日期校验。
             val match = value?.let(gregorianDate::find) ?: return null
             return try {
                 LocalDate.of(match.groupValues[1].toInt(), match.groupValues[2].toInt(), match.groupValues[3].toInt())

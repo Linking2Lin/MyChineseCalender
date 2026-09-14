@@ -18,7 +18,10 @@ import org.junit.Test
 
 /** 验证真实 Ktor 日志插件的最终输出，而非只检查配置常量。 */
 class NetworkLoggingTest {
-    /** @return Unit；模拟凭证不得出现在 Debug 输出，Release 不产生 HTTP 日志。 */
+    /**
+     * 捕获真实 Ktor Logging 输出，验证 Debug 隐藏认证头与正文，Release 不产生 HTTP 日志。
+     * @return Unit；断言通过时正常结束，失败由 JUnit 报告。
+     */
     @Test fun credentialsAreHiddenInDebugAndRelease() = runTest {
         for (debug in listOf(true, false)) {
             val messages = Collections.synchronizedList(mutableListOf<String>())
@@ -27,6 +30,11 @@ class NetworkLoggingTest {
             }) {
                 install(Logging) {
                     logger = object : Logger {
+                        /**
+                         * 收集日志插件实际发出的文本，供请求结束后的脱敏断言使用。
+                         * @param message Logging 插件产生的一条日志，不在本回调中改写或二次脱敏。
+                         * @return Unit；将文本追加到线程安全的测试收集列表。
+                         */
                         override fun log(message: String) { messages += message }
                     }
                     configureSafeLogging(debug)
@@ -41,6 +49,7 @@ class NetworkLoggingTest {
                 }.bodyAsText()
             } finally {
                 client.close()
+                // 等待客户端内部日志协程结束后再断言，避免遗漏最后几条异步日志。
                 client.coroutineContext[Job]?.join()
             }
             val output = messages.joinToString("\n")

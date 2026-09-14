@@ -26,6 +26,7 @@ internal interface PoemTokenStore {
  * @param context 应用 Context，用于访问原有 Preferences 文件。
  */
 internal class DataStorePoemTokenStore(context: Context) : PoemTokenStore {
+    // 委托定义在文件顶层，同一文件的各个仓库实例复用同一 DataStore 实例。
     private val store = context.applicationContext.poemDataStore
     private val tokenKey = stringPreferencesKey("user_token")
 
@@ -37,6 +38,7 @@ internal class DataStorePoemTokenStore(context: Context) : PoemTokenStore {
      * @return Unit；事务提交后完成。
      */
     override suspend fun write(token: String?) {
+        // edit 内只修改 Token 键，保留同一 Preferences 文件中的其他潜在配置。
         store.edit { preferences ->
             if (token == null) preferences.remove(tokenKey) else preferences[tokenKey] = token
         }

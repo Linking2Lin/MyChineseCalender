@@ -31,7 +31,7 @@ private val LightColorScheme = lightColorScheme(
  * @param darkTheme 是否使用深色主题，默认跟随系统设置。
  * @param dynamicColor 是否使用 Android 动态配色，默认行为保持不变。
  * @param content 使用本主题渲染的 Compose 内容回调。
- * @return Unit；发出原有 Compose/Glance 内容，不返回业务数据或改变既有视觉参数。
+ * @return Unit；在选定的 MaterialTheme 色板和 Typography 下组合 content。
  */
 @Composable
 fun MyChineseCalendarTheme(
@@ -40,6 +40,7 @@ fun MyChineseCalendarTheme(
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit
 ) {
+    // 动态色优先；只有关闭动态色或平台不支持时，才选用本项目固定色板。
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current

@@ -21,6 +21,7 @@ import kotlinx.coroutines.ensureActive
  * @param target 最终图片文件，父目录必须已存在且可写；所有选择应共用一个写入器。
  */
 class LatestImageWriter(private val target: File) {
+    // latest 表示最后一次用户选择，不表示最后一次完成编码的请求。
     private val latest = AtomicLong()
     private val mutex = Mutex()
     private val commitLock = Any()
@@ -38,6 +39,7 @@ class LatestImageWriter(private val target: File) {
      * @return Boolean；true 表示最新请求已提交，false 表示被后续选择淘汰。
      */
     suspend fun write(request: Long, encode: suspend (OutputStream) -> Unit): Boolean = mutex.withLock {
+        // 等待编码锁期间可能已有新选择；过时请求不再解码或创建临时文件。
         if (request != latest.get()) return@withLock false
         val temporary = File.createTempFile(target.name, ".tmp", target.parentFile)
         try {

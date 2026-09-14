@@ -15,8 +15,8 @@ import com.elvishew.xlog.printer.file.FilePrinter
 open class MyApplication : Application() {
 
     /**
-     * 完成当前生命周期初始化，后续异步结果由仓库和状态流传递。
-     * @return Unit；完成当前生命周期初始化，后续异步结果由仓库和状态流传递。
+     * 为本进程配置日志级别及 Logcat、控制台、内部文件三个输出目标。
+     * @return Unit；初始化 XLog，使后续应用入口可调用 Logger。
      */
     override fun onCreate() {
         super.onCreate()

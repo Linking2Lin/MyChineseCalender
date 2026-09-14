@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+    <!-- 黄历、HKO 与诗词共用此联网权限；照片读取通过系统选择器授予的 URI 完成。 -->
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- 重启后恢复已有小组件调度；午夜使用非精确闹钟，不声明精确闹钟特殊权限。 -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
@@ -18,6 +19,7 @@
         android:name=".App"
         android:enableOnBackInvokedCallback="true"
         >
+        <!-- 桌面启动器需要访问此入口；业务状态仍由 MainViewModel 管理。 -->
         <activity
             android:name=".MainActivity"
             android:exported="true"

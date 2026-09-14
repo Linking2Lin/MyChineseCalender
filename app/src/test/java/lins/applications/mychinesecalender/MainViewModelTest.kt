@@ -26,25 +26,57 @@ import org.junit.Test
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class MainViewModelTest {
+    /**
+     * 构造能通过日期校验的最小黄历模型，避免测试依赖真实接口。
+     * @param date 样例所属日期，同时写入模型的公历展示字段。
+     * @return CHNDate；包含指定公历日期与非空测试农历。
+     */
     private fun data(date: LocalDate) = CHNDate(year = date.toString(), lunarDate = "测试农历")
+    /** 页面用内存缓存：broken 同时模拟读写故障，观察流仍保留以接收仓库状态。 */
     private class Cache : DailyCache<CHNDate> {
         val rows = MutableStateFlow<Map<LocalDate, CHNDate>>(emptyMap())
         var broken = false
+        /**
+         * 按指定日期读取测试缓存，并允许主动制造磁盘故障。
+         * @param date 本次精确查询的公历日期。
+         * @return CHNDate?；不存在时为 null，读取故障时抛出 IOException。
+         */
         override suspend fun read(date: LocalDate): CHNDate? {
             if (broken) throw IOException("database unavailable")
             return rows.value[date]
         }
+        /**
+         * 订阅指定日期的内存记录，模拟 Room 可观察查询。
+         * @param date 需要观察的公历日期，不使用其他日期的记录兜底。
+         * @return 冷 Flow；发出该日期的测试数据或 null，不发起网络请求。
+         */
         override fun observe(date: LocalDate) = rows.map { it[date] }
+        /**
+         * 模拟同日缓存替换；故障开关在修改数据前生效。
+         * @param date 目标记录的公历日期键。
+         * @param data 需要保存的测试数据。
+         * @return Unit；替换内存表中的指定日记录，写入故障时抛出 IOException。
+         */
         override suspend fun write(date: LocalDate, data: CHNDate) {
             if (broken) throw IOException("disk full")
             rows.value += date to data
         }
+        /**
+         * 该页面测试替身忽略清理；日期保留范围由 DailyRepositoryTest 单独验证。
+         * @param before 保留闭区间起点；页面测试替身不使用此参数。
+         * @param after 保留闭区间终点；页面测试替身不使用此参数。
+         * @return Unit；不修改测试数据。
+         */
         override suspend fun prune(before: LocalDate, after: LocalDate) = Unit
     }
 
-    // 让旧请求一直挂起，再切日，确认旧加载被取消且页面只展示新日期的结果。
+    /**
+     * 旧日期请求持续挂起时切换今天，验证页面取消旧加载并只接收新日期结果。
+     * @return Unit；断言通过时正常结束，失败由 JUnit 报告。
+     */
     @Test fun changingDayCancelsOldLoadAndReplacesSelectedDate() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
+        // viewModelScope 使用 Main；替换后与仓库共用同一个可控测试调度器。
         Dispatchers.setMain(dispatcher)
         val store = ViewModelStore()
         try {
@@ -55,6 +87,7 @@ class MainViewModelTest {
                 data(date)
             }, { value, date -> value.isValidFor(date) }, { today }, dispatcher)
             val vm = MainViewModel(repository, { today }, dispatcher)
+            // 交给 Store 托管，finally 中 clear 会取消 ViewModel 的长寿命订阅。
             store.put("calendar", vm)
             vm.refreshCalendar()
             runCurrent()
@@ -67,9 +100,13 @@ class MainViewModelTest {
         } finally { store.clear(); Dispatchers.resetMain() }
     }
 
-    // 同日前台恢复复用缓存；随后手动强刷失败时仍保留原数据并显示错误。
+    /**
+     * 同日再次恢复前台应命中缓存；随后强制刷新失败时保留内容并发布网络错误。
+     * @return Unit；断言通过时正常结束，失败由 JUnit 报告。
+     */
     @Test fun foregroundReentryUsesCacheAndExplicitRetryShowsFailure() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
+        // viewModelScope 使用 Main；替换后与仓库共用同一个可控测试调度器。
         Dispatchers.setMain(dispatcher)
         val store = ViewModelStore()
         try {
@@ -80,6 +117,7 @@ class MainViewModelTest {
                 data(date)
             }, { value, date -> value.isValidFor(date) }, { today }, dispatcher)
             val vm = MainViewModel(repository, { today }, dispatcher)
+            // 交给 Store 托管，finally 中 clear 会取消 ViewModel 的长寿命订阅。
             store.put("calendar", vm)
             vm.refreshCalendar(); advanceUntilIdle()
             vm.refreshCalendar(); advanceUntilIdle()
@@ -91,9 +129,13 @@ class MainViewModelTest {
         } finally { store.clear(); Dispatchers.resetMain() }
     }
 
-    // 缓存读写均失败时，页面继续展示网络数据，同时给出独立的缓存错误。
+    /**
+     * 缓存读写都失败时，页面仍显示有效网络数据，并单独发布缓存错误。
+     * @return Unit；断言通过时正常结束，失败由 JUnit 报告。
+     */
     @Test fun databaseFailureStillDisplaysNetworkDataWithoutCrashing() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
+        // viewModelScope 使用 Main；替换后与仓库共用同一个可控测试调度器。
         Dispatchers.setMain(dispatcher)
         val store = ViewModelStore()
         try {
@@ -101,6 +143,7 @@ class MainViewModelTest {
             val repository = DailyRepository(Cache().apply { broken = true }, { data(it) },
                 { value, date -> value.isValidFor(date) }, { today }, dispatcher)
             val vm = MainViewModel(repository, { today }, dispatcher)
+            // 交给 Store 托管，finally 中 clear 会取消 ViewModel 的长寿命订阅。
             store.put("calendar", vm)
             vm.refreshCalendar(); advanceUntilIdle()
             assertNotNull(vm.calendar.value.data)

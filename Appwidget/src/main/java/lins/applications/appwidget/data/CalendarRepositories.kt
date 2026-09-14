@@ -43,7 +43,7 @@ class CalendarRepositories private constructor(context: Context) {
             /**
              * 订阅指定日期的黄历记录，将 Room 更新转成展示模型。
              * @param date 本次操作的公历日期，使用设备当前时区解释；不能用请求完成时的日期替换。
-             * @return 冷 Flow；发出该日期的缓存或加载状态，不主动发起网络请求。
+             * @return 冷 Flow；发出指定日期的展示模型或 null，加载与错误标记由外层仓库补充。
              */
             override fun observe(date: LocalDate) = flow {
                 emitAll(db().chnDateDao().observeByDate(date.toString()).map { it?.toModel() })
@@ -84,7 +84,7 @@ class CalendarRepositories private constructor(context: Context) {
             /**
              * 订阅指定日期的 HKO 缓存，不在观察函数中联网。
              * @param date 本次操作的公历日期，使用设备当前时区解释；不能用请求完成时的日期替换。
-             * @return 冷 Flow；发出该日期的缓存或加载状态，不主动发起网络请求。
+             * @return 冷 Flow；发出指定日期的展示模型或 null，加载与错误标记由外层仓库补充。
              */
             override fun observe(date: LocalDate) = flow {
                 emitAll(db().lunarDateDao().observeByDate(date.toString()).map { it?.toResponse() })

@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- 库级 Manifest 当前没有独立组件或权限；最终应用入口在 app 的 Manifest 中统一注册。 -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
 </manifest>

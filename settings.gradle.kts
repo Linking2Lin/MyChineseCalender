@@ -2,6 +2,7 @@
 pluginManagement {
     repositories {
         google {
+            // 限定 Google 插件仓库的查询范围，其余插件继续从后续仓库解析。
             content {
                 includeGroupByRegex("com\\.android.*")
                 includeGroupByRegex("com\\.google.*")

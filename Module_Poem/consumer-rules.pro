@@ -1,1 +1,2 @@
+# 随本库 AAR 传给使用方的 R8 规则；当前未声明额外保留项。
 # Consumer proguard rules for Module_Poem

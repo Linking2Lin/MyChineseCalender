@@ -36,12 +36,20 @@ class PoemRepository internal constructor(
      */
     constructor(context: Context) : this(DataStorePoemTokenStore(context), KtorClient.client)
 
+    // 下面三个 Token 状态只在 mutex 保护的整次请求中访问，避免旧请求清掉新凭证。
     private val mutex = Mutex()
+    // 表示本实例已完成首次缓存读取或主动失效处理；不代表磁盘一定读取成功。
     private var tokenRead = false
+    // 当前可复用的凭证；先更新内存再保存，允许磁盘故障期间继续请求诗词。
     private var memoryToken: String? = null
+    // 内存与磁盘可能不一致；待写值也可以为 null，表示删除已拒绝的凭证。
     private var tokenDirty = false
 
-    /** Token 接口的传输模型，只有业务成功且 data 非空才采用。 */
+    /**
+     * Token 接口的传输模型。
+     * @param status 业务状态；只有 success 才采用 data。
+     * @param data 服务端下发的 Token，空白值不可用，不能写入诊断日志。
+     */
     @Serializable
     private data class TokenResponse(val status: String, val data: String)
 
@@ -117,6 +125,7 @@ class PoemRepository internal constructor(
      */
     suspend fun fetchPoem(): PoemResponse? = mutex.withLock {
         try {
+            // 上限针对诗句请求次数；只有认证拒绝才进入下一轮，不对普通故障无限重试。
             repeat(2) { attempt ->
                 val token = getOrFetchToken()
                 val response = client.get("https://v2.jinrishici.com/sentence") {

@@ -16,9 +16,14 @@ import org.junit.Test
  * 手工构造 v2/v3 历史结构后交由 Room 升级并验证新结构，不使用生产数据库文件名。
  */
 class DatabaseMigrationTest {
+    /**
+     * 分别构建 v2/v3 数据库并升级，验证保留 HKO 数据、去重有效黄历以及日期主键覆盖行为。
+     * @return Unit；断言通过时正常结束，失败由 JUnit 报告。
+     */
     @Test fun v2AndV3UpgradePreserveLunarCacheAndDeduplicateValidAlmanac() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         for (oldVersion in listOf(2, 3)) {
+            // 每个旧版本使用独立文件，避免上一次迁移结果或生产缓存影响本次断言。
             val name = "migration-$oldVersion-${System.nanoTime()}.db"
             val path = context.getDatabasePath(name)
             path.parentFile!!.mkdirs()
@@ -29,6 +34,7 @@ class DatabaseMigrationTest {
                 old.execSQL("CREATE TABLE $table (uid INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, ${columns.joinToString { "$it TEXT" }})")
                 old.execSQL("CREATE TABLE lunar_date (date TEXT NOT NULL PRIMARY KEY, lunar_year TEXT NOT NULL, lunar_date TEXT NOT NULL)")
                 old.execSQL("INSERT INTO lunar_date VALUES ('2026-09-06', '丙午年', '七月廿五')")
+                // 同日最后一条是无效空值；迁移必须保留它之前最近的有效记录。
                 for (lunar in listOf("旧缓存", "新缓存", "")) {
                     old.execSQL("INSERT INTO $table (${columns[0]}, ${columns[1]}) VALUES (?, ?)", arrayOf("2026年9月6日 星期日", lunar))
                 }

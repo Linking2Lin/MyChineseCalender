@@ -13,6 +13,7 @@ android {
         minSdk = 31
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        // consumer 规则随 AAR 交给最终应用；与本库自身的 proguardFiles 作用范围不同。
         consumerProguardFiles("consumer-rules.pro")
     }
 
@@ -25,12 +26,14 @@ android {
             )
         }
     }
+    // Java 源码/字节码目标保持为 11；运行 Gradle 的 JDK 由工具链文件另行指定。
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
 
     buildFeatures {
+        // 共享客户端和业务日志从本模块 BuildConfig.DEBUG 选择输出级别。
         buildConfig = true
     }
 }
@@ -39,6 +42,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
     implementation(libs.material)
+    // JVM 用例使用本机测试环境；androidTest 的执行则需要 Android 设备或模拟器。
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.ktor.client.mock)
@@ -59,6 +63,7 @@ dependencies {
     // Room 数据库（上层模块直接使用 AppDataBase，其父类 RoomDatabase 需要可见）
     api(libs.room.runtime)
     api(libs.room.ktx)
+    // DAO 实现和数据库结构检查由 Room 编译器生成，不直接编辑生成文件。
     ksp(libs.room.compiler)
 
     // Kotlinx JSON 序列化库（上层模块的 data class 使用 @Serializable 注解）

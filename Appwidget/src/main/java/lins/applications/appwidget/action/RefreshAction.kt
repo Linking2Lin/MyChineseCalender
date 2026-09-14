@@ -36,7 +36,7 @@ class RefreshAction : ActionCallback {
     }
 
     /**
-     * Unit（挂起）；同步完成后通过原有 Toast 反馈，退出时释放点击互斥标记。
+     * 合并重复点击，执行当天缓存优先同步，并按失败阶段给出 Toast。
      * @param context 调用入口的 Context；长生命周期依赖使用 applicationContext，避免持有页面。
      * @param glanceId 触发点击的 Glance 实例标识，实际同步仍覆盖所有已登记实例。
      * @param parameters 框架传入的点击参数；当前刷新动作不读取额外业务参数。

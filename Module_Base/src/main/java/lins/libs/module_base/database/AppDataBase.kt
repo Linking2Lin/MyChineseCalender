@@ -39,6 +39,7 @@ abstract class AppDataBase : RoomDatabase() {
 
     companion object {
         @Volatile
+        // Volatile 保证锁外快速读取能看到已完成构建的实例，锁内再检查避免重复创建。
         private var INSTANCE: AppDataBase? = null
 
         /** v2 → v3：将旧表名及驼峰列名改为显式下划线命名，保留 uid 与原有字段。 */
@@ -49,6 +50,7 @@ abstract class AppDataBase : RoomDatabase() {
              * @return Unit；在 Room 提供的升级连接上完成结构/数据迁移，异常交由 Room 回滚。
              */
             override fun migrate(db: SupportSQLiteDatabase) {
+                // 先建立目标结构，再复制有效旧内容；替换表名的步骤始终放在数据复制之后。
                 db.execSQL(
                     """
                     CREATE TABLE IF NOT EXISTS `chn_date_new` (
@@ -89,6 +91,7 @@ abstract class AppDataBase : RoomDatabase() {
              * @return Unit；在 Room 提供的升级连接上完成结构/数据迁移，异常交由 Room 回滚。
              */
             override fun migrate(db: SupportSQLiteDatabase) {
+                // 先建立目标结构，再复制有效旧内容；替换表名的步骤始终放在数据复制之后。
                 db.execSQL("""
                     CREATE TABLE `chn_date_v4` (
                         `date` TEXT NOT NULL PRIMARY KEY, `year` TEXT, `lunar_date` TEXT,

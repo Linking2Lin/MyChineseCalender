@@ -8,6 +8,7 @@ import androidx.compose.ui.unit.sp
 
 // 统一页面正文的字体与行距，单位 sp 会响应系统字体缩放；未覆盖样式使用 Material3 默认值。
 // 小组件沿用 MyAppWidget 中独立的字号公式，不受此 Typography 配置影响。
+/** 页面共用的 Material3 字体样式表；当前仅显式覆盖 bodyLarge。 */
 val Typography = Typography(
     bodyLarge = TextStyle(
         fontFamily = FontFamily.Default,

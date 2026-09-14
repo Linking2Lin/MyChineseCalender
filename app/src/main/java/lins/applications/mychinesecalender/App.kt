@@ -13,8 +13,8 @@ import lins.libs.module_base.MyApplication
  */
 class App : MyApplication() {
     /**
-     * 完成当前生命周期初始化，后续异步结果由仓库和状态流传递。
-     * @return Unit；完成当前生命周期初始化，后续异步结果由仓库和状态流传递。
+     * 初始化业务日志，注册进程内日期广播，并恢复已有小组件的后台调度。
+     * @return Unit；完成注册与任务安排，实际数据同步由后续 Worker 执行。
      */
     override fun onCreate() {
         super.onCreate()
