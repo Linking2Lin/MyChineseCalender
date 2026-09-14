@@ -19,7 +19,7 @@
 
 主页和小组件的数据来源不同，分别是完整黄历与 HKO 轻量农历，由 [CalendarRepositories](../Appwidget/src/main/java/lins/applications/appwidget/data/CalendarRepositories.kt) 装配成两份共享的 [DailyRepository](../Module_Base/src/main/java/lins/libs/module_base/data/DailyRepository.kt)。它们共用加载流程，但各有互斥锁与状态表。
 
-普通加载先精确读取指定日磁盘缓存，再选择有效的同日内存结果；没有内存结果才采用磁盘值。这样上次写盘失败时，较旧的磁盘值不会覆盖已展示的新数据。有有效数据就按需补写或重试清理；没有时才联网、校验、写库并发布状态。强制刷新会尝试联网；请求失败时仍保留原先有效的同日数据。
+普通加载先精确读取指定日磁盘缓存，再选择有效的同日内存结果；没有内存结果才采用磁盘值。这样上次写盘失败时，较旧的磁盘值不会覆盖已展示的新数据。有有效数据就按需补写或重试清理；没有时才联网、校验、写库并发布状态。仓库仍支持供 App 页面使用的强制刷新，失败时保留原先有效的同日数据；小组件的点击和后台入口统一采用普通加载，不强制联网。
 
 维护这条链路时保留以下约定：
 
@@ -38,6 +38,8 @@
 [WidgetScheduler](../Appwidget/src/main/java/lins/applications/appwidget/helper/WidgetScheduler.kt) 统一安排三类任务：30 分钟周期兜底、下一本地午夜的非精确闹钟，以及合并密集事件的即时任务。只有存在实际桌面实例才维持调度，最后一个实例删除后取消。
 
 触发后由 [SyncDateWorker](../Appwidget/src/main/java/lins/applications/appwidget/worker/SyncDateWorker.kt) 调用 [WidgetDataSyncHelper](../Appwidget/src/main/java/lins/applications/appwidget/helper/WidgetDataSyncHelper.kt)：先请求展示本地状态 → 加载今天 → 检查请求期间是否换日 → 再请求所有组件更新 → 成功后尽力预取明天。广播只排队，不在接收窗口里等待网络。
+
+点击刷新也调用同一个 `syncAndUpdate(context)`，该入口不提供强制联网参数。当天有有效内存或磁盘缓存时直接复用；当天缺失或之前请求失败且无有效数据时才请求接口。次日预取同样按日期复用缓存，不影响 App 页面原有的主动刷新能力。
 
 Glance 活跃会话不能依靠重复调用 `update` 一定重进 `provideGlance`。新会话先读取本地头像和当天仓库首值来初始化首帧，避免点击后先显示空态；日期与头像随后仍在 `provideContent` 内持续收集，换日使用 `flatMapLatest` 切换日期订阅。新增状态也应进入这条可观察链路，而不是只在入口读取一次。
 

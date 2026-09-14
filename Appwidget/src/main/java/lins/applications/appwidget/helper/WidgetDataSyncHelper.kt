@@ -47,18 +47,18 @@ object WidgetDataSyncHelper {
     }
 
     /**
-     * 先触发展示本地状态，再获取指定日数据，最后再次请求展示结果。
-     * force 只影响第一次读取；请求期间跨日时，对新日期采用普通缓存优先加载。
+     * 先触发展示本地状态，再加载当天数据，最后再次请求展示结果。
+     * 点击与后台均复用当天有效缓存；同一日期成功获取后不重复联网，无缓存时仍可重试。
+     * 请求期间跨日时，同样先检查新日期的缓存。本入口不提供强制联网选项。
      * @param context 调用入口的 Context；长生命周期依赖使用 applicationContext，避免持有页面。
-     * @param force true 表示尝试强制联网；false 优先复用同日有效缓存。
      * @return WidgetSyncResult；分别说明今日数据、缓存操作及最终更新请求是否成功。
      */
-    suspend fun syncAndUpdate(context: Context, force: Boolean = false): WidgetSyncResult {
+    suspend fun syncAndUpdate(context: Context): WidgetSyncResult {
         val repository = CalendarRepositories.get(context).lunar
         val date = CalendarDates.today()
         // 先请求展示，避免慢网络使昨天内容一直停留；最终返回值以末次更新请求结果为准。
         updateAllWidgets(context)
-        val result = repository.load(date, force)
+        val result = repository.load(date)
         // 跨午夜的旧请求不能作为今天的成功结果。只补查一次，避免反复改时钟造成无界循环；
         // 返回前再次核对当前日期，若又跨日则判失败，让后续任务重试。
         val current = if (CalendarDates.today() == date) result else repository.load(CalendarDates.today())

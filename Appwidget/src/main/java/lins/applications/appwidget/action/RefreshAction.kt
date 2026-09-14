@@ -18,7 +18,7 @@ private const val TAG = "RefreshAction"
  *
  * 这个回调负责：
  * 1. 通过原子锁避免用户连续点击导致并发刷新
- * 2. 调用数据同步逻辑拉取最新农历
+ * 2. 复用当天有效农历缓存，缺失时才请求接口
  * 3. 请求刷新全部 widget 实例，保持多个副本一致
  * 4. 分别反馈数据、缓存和更新请求的失败
  *
@@ -59,15 +59,15 @@ class RefreshAction : ActionCallback {
         Logger.d(TAG, "onAction: refreshing widget $glanceId")
 
         try {
-            // 同步成功后统一刷新所有实例，避免多副本显示不同日期。
-            val result = WidgetDataSyncHelper.syncAndUpdate(context, force = true)
+            // 点击与后台采用相同的缓存规则；已有当天有效数据时只更新展示，不重复联网。
+            val result = WidgetDataSyncHelper.syncAndUpdate(context)
 
             withContext(Dispatchers.Main) {
                 val message = when {
                     !result.dataReady -> "今日数据获取失败，请稍后重试"
                     !result.cacheSaved -> "数据已获取，但保存失败"
                     !result.updates.succeeded -> "部分组件更新失败，请重试"
-                    else -> "数据已更新"
+                    else -> "今日数据已就绪"
                 }
                 Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
             }
