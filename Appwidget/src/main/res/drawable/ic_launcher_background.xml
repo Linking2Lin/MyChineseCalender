@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+  <group android:scaleX="1.05"
+      android:scaleY="1.05"
+      android:translateX="-2.7"
+      android:translateY="-2.7">
+
+      <!-- One UI 苍色/水色系平滑渐变背景 -->
+      <path android:pathData="M0,0 h108 v108 h-108 z">
+          <aapt:attr name="android:fillColor">
+              <gradient
+                  android:type="linear"
+                  android:startX="0"
+                  android:startY="0"
+                  android:endX="108"
+                  android:endY="108">
+                  <!-- 顶部：略微偏亮的苍灰蓝 -->
+                  <item android:color="#93b5cf" android:offset="0.0" />
+                  <!-- 底部：略微偏深沉的水色蓝 -->
+                  <item android:color="#8fb2c9" android:offset="1.0" />
+              </gradient>
+          </aapt:attr>
+      </path>
+  </group>
+</vector>

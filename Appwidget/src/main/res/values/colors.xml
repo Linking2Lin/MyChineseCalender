@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 亮色模式渐变色：起始为 #93b5cf，结束为 10% 透明度的 #93b5cf (#1A93b5cf) -->
+    <color name="widget_gradient_start">#93b5cf</color>
+    <color name="widget_gradient_end">#F793b5cf</color>
+</resources>

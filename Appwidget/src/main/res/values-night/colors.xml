@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 暗色模式渐变色：起始为 #2b333e，结束为 10% 透明度的 #2b333e (#1A2b333e) -->
+    <color name="widget_gradient_start">#2b333e</color>
+    <color name="widget_gradient_end">#F72b333e</color>
+</resources>

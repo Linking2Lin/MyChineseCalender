@@ -1,3 +1,5 @@
+# 本库自身的压缩规则文件；当前 build.gradle.kts 中库 Release 的 isMinifyEnabled 为 false。
+# 本文件不是 consumer 规则，不应据此推断最终 app 的 R8 保留范围。
 # Add project specific ProGuard rules here.
 # You can control the set of applied configuration files using the
 # proguardFiles setting in build.gradle.
