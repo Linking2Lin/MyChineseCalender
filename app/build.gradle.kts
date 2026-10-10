@@ -13,8 +13,9 @@ android {
         applicationId = "lins.applications.mychinesecalender"
         minSdk = 31
         targetSdk = 37
-        versionCode = 1
-        versionName = "1.0.0"
+        // 当前开发版本；版本号与递增规则见 docs/VERSIONING.md。
+        versionCode = 2
+        versionName = "1.0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
