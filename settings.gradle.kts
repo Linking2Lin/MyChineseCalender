@@ -15,7 +15,7 @@ pluginManagement {
 }
 plugins {
     // 解析构建 JDK 工具链；实际 daemon 要求见 gradle/gradle-daemon-jvm.properties。
-    id("org.gradle.toolchains.foojay-resolver-convention") version "0.10.0"
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 dependencyResolutionManagement {
     // 依赖仓库集中管理，模块不得私自声明仓库；依赖版本集中在版本目录文件中。
